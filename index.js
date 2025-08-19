@@ -5,7 +5,7 @@ const router=require('./routes/authRoutes')
 const express=require('express')
 const cors=require('cors')
 const server=express()
-const PORT=4001 || process.env.PORT
+const PORT=4000 || process.env.PORT
 
 
 server.use(cors())

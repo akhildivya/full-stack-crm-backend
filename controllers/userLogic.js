@@ -33,29 +33,34 @@ const userRegister = async (req, res) => {
 
 
 const userLogin = async (req, res) => {
+
+    const { email, password } = req.body
     try {
-        const { email, password } = req.body
-        if (!email || !password) {
-            res.status(400).json({ message: "invalid email or password" })
-        }
         const currentUser = await User.findOne({ email })
-        if (!currentUser) {
-            res.status(404).json({ message: "Email is not registered" })
+        if (currentUser && await bcrypt.compare(password, currentUser.password)) {
+            const token = jwt.sign({ _id: currentUser._id }, process.env.JWT_SECRET, { expiresIn: '7d' })
+            res.status(200).json({ user: currentUser, token })
         }
-        const match = await bcrypt.compare(password, currentUser.password)
-        if (!match) {
-            res.status(400).json({ message: "Invalid password" })
+        else {
+            res.status(404).json("incorrect username or password")
         }
-        const token = await jwt.sign({ _id: currentUser._id }, process.env.JWT_SECRET, { expiresIn: '7d' })
-        res.status(200).json({message:"Login successful", user: currentUser, token })
     }
     catch (err) {
-        res.status(401).json({ message: "User login API not working" })
+        res.status(401).json("Login Api not working")
+    }
+}
+const testController = async (req, res) => {
+    res.status(400).json({ message: "protected route" })
+}
+
+const forgotPasswordController = async (req, res) => {
+    try {
+        
+    }
+    catch (err) {
+        res.status(500).json({ message: "Forgot password api not working" })
     }
 
 }
-const testController=async(req,res)=>{
-res.status(400).json({message:"protected route"})
-}
 
-module.exports = { userRegister, userLogin,testController }
+module.exports = { userRegister, userLogin, testController, forgotPasswordController }
