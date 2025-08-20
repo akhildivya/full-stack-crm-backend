@@ -8,6 +8,7 @@ const router=new express.Router()
 router.post('/register',user.userRegister)
 router.post('/login',user.userLogin)
 router.post('/forgot-password',user.forgotPasswordController)
+router.post('/reset-password/:id/:token',user.resetPasswordController)
 router.get('/test',requireSignIn,isAdmin,user.testController)
 
 //protected Routes
