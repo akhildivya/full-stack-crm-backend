@@ -28,7 +28,7 @@ const userRegister = async (req, res) => {
 
     }
     catch (err) {
-        res.status(500).json({ message: "User register API not working" })
+        res.status(500).json({ message: "network connectivity issues" })
     }
 }
 
@@ -47,7 +47,7 @@ const userLogin = async (req, res) => {
         }
     }
     catch (err) {
-        res.status(500).json("Login Api not working")
+        res.status(500).json("network connectivity issues")
     }
 }
 const testController = async (req, res) => {
@@ -76,15 +76,15 @@ const forgotPasswordController = async (req, res) => {
         const mailOptions = {
             from: process.env.EMAIL,
             to: user.email,
-            subject: 'Password Reset request',
+            subject: 'CRM - password reset request: do not reply to this mail',
             text: `Click here to reset your password: ${resetURL}`
         }
         await transporter.sendMail(mailOptions)
-        res.status(200).json({ message: `Password reset request send to ${user.email}` })
+        res.status(200).json({ message: `password reset request send to ${user.email}` })
 
     }
     catch (err) {
-        res.status(500).json({ message: "Forgot password api not working" })
+        res.status(500).json({ message: "network connectivity issues" })
     }
 
 }
