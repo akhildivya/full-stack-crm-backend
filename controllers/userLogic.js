@@ -5,7 +5,7 @@ const nodemailer = require('nodemailer');
 const userRegister = async (req, res) => {
 
     try {
-        const { username, email, password } = req.body
+        const { username, email, password, userType, phone } = req.body
         if (!username) {
             res.status(400).json({ message: "Name is required" })
         }
@@ -15,15 +15,18 @@ const userRegister = async (req, res) => {
         if (!password) {
             res.status(400).json({ message: "password is required" })
         }
-        const existingUser = await User.findOne({ email })
+        if (!phone) {
+            res.status(400).json({ message: "phone number is required" })
+        }
+        const existingUser = await User.findOne({ $or: [{email },{phone}]})
         if (existingUser) {
-            res.status(409).json("User already exists!")
+            res.status(409).json({ message: "Email or phone already in use!" })
         }
         else {
             const hashPad = await bcrypt.hash(password, 10)
-            const newUser = new User({ username, email, password: hashPad })
+            const newUser = new User({ username, email, password: hashPad, userType,phone })
             await newUser.save()
-            res.status(200).json(`Registered with username ${username}`)
+            res.status(200).json(` ${username} is registered`)
         }
 
     }
@@ -64,7 +67,7 @@ const forgotPasswordController = async (req, res) => {
             res.status(404).json({ message: "The user does not exist" })
         }
         const secret = process.env.JWT_SECRET + user.password;
-        const token = jwt.sign({ id: user._id },  secret, { expiresIn: '1h' })
+        const token = jwt.sign({ id: user._id }, secret, { expiresIn: '1h' })
         const resetURL = `${process.env.CLIENT_URL}/reset-password/${user._id}/${token}`
         const transporter = nodemailer.createTransport({
             service: 'gmail',
