@@ -15,7 +15,7 @@ const isAdmin=async(req,res,next)=>{
     try
     {
         const user=await User.findById(req.user._id)
-        if(user.role !==1)
+        if(user.userType !=='Admin')
         {
             res.status(401).json({message :"Unauthorized access"})
         }
