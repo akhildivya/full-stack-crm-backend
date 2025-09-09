@@ -21,7 +21,8 @@ const userSchema = new mongoose.Schema({
     userType: {
         type: String,
         required:true
-    }
+    },
+     verified: { type: Boolean, default: false },
 }, { timestamps: true })
 const users = mongoose.model("users", userSchema)
 module.exports = users

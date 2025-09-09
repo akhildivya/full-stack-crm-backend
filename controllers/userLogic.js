@@ -18,13 +18,13 @@ const userRegister = async (req, res) => {
         if (!phone) {
             res.status(400).json({ message: "phone number is required" })
         }
-        const existingUser = await User.findOne({ $or: [{email },{phone}]})
+        const existingUser = await User.findOne({ $or: [{ email }, { phone }] })
         if (existingUser) {
             res.status(409).json({ message: "Email or phone already in use!" })
         }
         else {
             const hashPad = await bcrypt.hash(password, 10)
-            const newUser = new User({ username, email, password: hashPad, userType,phone })
+            const newUser = new User({ username, email, password: hashPad, userType, phone })
             await newUser.save()
             res.status(200).json(` ${username} is registered`)
         }
@@ -111,4 +111,61 @@ const resetPasswordController = async (req, res) => {
     return res.status(200).json({ message: 'Password has been reset' })
 }
 
-module.exports = { userRegister, userLogin, testController, forgotPasswordController, resetPasswordController }
+const verfifyController = async (req, res) => {
+    try {
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            { verified: true },
+            { new: true }
+        );
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+
+}
+
+const userDetails = async (req, res) => {
+    try {
+        const users = await User.find({ userType: 'User' });
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+
+}
+
+const userStatus = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.json({ verified: user.verified });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+const userProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).select('-password');
+        return res.json(user);
+    } catch (err) {
+        return res.status(500).json({ message: 'Server error' });
+    }
+}
+
+const editProfile = async (req, res) => {
+    try {
+        const updates = req.body; // e.g., { username, email, phone }
+        const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true }).select('-password');
+        return res.json(user);
+    } catch (err) {
+        return res.status(500).json({ message: 'Server error' });
+    }
+}
+module.exports = { userRegister, userLogin, testController, forgotPasswordController, resetPasswordController, verfifyController, userDetails, userStatus, userProfile,editProfile  }

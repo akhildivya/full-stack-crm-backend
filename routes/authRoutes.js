@@ -15,8 +15,15 @@ router.get('/test',requireSignIn,isAdmin,user.testController)
 router.get('/user-auth',requireSignIn,(req,res)=>{
     res.status(200).send({ok:true})
 })
+router.get('/all-users',requireSignIn,user.userDetails)
+router.get('/status',requireSignIn,user.userStatus)
+router.get('/my-profile',requireSignIn,user.userProfile)
+router.put('/my-profile',requireSignIn,user.editProfile)
+
 //Protected Admin Route
 router.get('/admin-auth',requireSignIn,isAdmin,(req,res)=>{
     res.status(200).send({ok:true})
 })
+router.put('/verify/:id',requireSignIn, isAdmin,user.verfifyController)
+
 module.exports=router
