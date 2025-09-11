@@ -19,6 +19,7 @@ router.get('/all-users',requireSignIn,user.userDetails)
 router.get('/status',requireSignIn,user.userStatus)
 router.get('/my-profile',requireSignIn,user.userProfile)
 router.put('/my-profile',requireSignIn,user.editProfile)
+router.delete('/delete-user/:id',requireSignIn,user.deleteProfile)
 
 //Protected Admin Route
 router.get('/admin-auth',requireSignIn,isAdmin,(req,res)=>{

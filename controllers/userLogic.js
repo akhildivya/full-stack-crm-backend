@@ -168,4 +168,16 @@ const editProfile = async (req, res) => {
         return res.status(500).json({ message: 'Server error' });
     }
 }
-module.exports = { userRegister, userLogin, testController, forgotPasswordController, resetPasswordController, verfifyController, userDetails, userStatus, userProfile,editProfile  }
+
+const deleteProfile = async (req, res) => {
+    try {
+        const deletedUser = await User.findByIdAndDelete(req.params.id);
+        if (!deletedUser) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+        res.status(200).json({ success: true, data: deletedUser });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "Server Error" });
+    }
+}
+module.exports = { userRegister, userLogin, testController, forgotPasswordController, resetPasswordController, verfifyController, userDetails, userStatus, userProfile, editProfile, deleteProfile }

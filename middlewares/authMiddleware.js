@@ -29,4 +29,6 @@ const isAdmin=async(req,res,next)=>{
         res.status(401).json({message:"error in admin middleware"})
     }
 }
+
+
 module.exports={requireSignIn,isAdmin }
