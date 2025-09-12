@@ -26,5 +26,7 @@ router.get('/admin-auth',requireSignIn,isAdmin,(req,res)=>{
     res.status(200).send({ok:true})
 })
 router.put('/verify/:id',requireSignIn, isAdmin,user.verfifyController)
-
+router.get('/admin-profile',requireSignIn,isAdmin,user.adminProfile)
+router.put('/admin-profile',requireSignIn,isAdmin,user.editAdminProfile)
+router.delete('/admin-delete/:id',requireSignIn,isAdmin,user.deleteAdminProfile)
 module.exports=router

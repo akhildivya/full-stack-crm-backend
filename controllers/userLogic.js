@@ -180,4 +180,36 @@ const deleteProfile = async (req, res) => {
         res.status(500).json({ success: false, error: "Server Error" });
     }
 }
-module.exports = { userRegister, userLogin, testController, forgotPasswordController, resetPasswordController, verfifyController, userDetails, userStatus, userProfile, editProfile, deleteProfile }
+
+const adminProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).select('-password');
+        return res.json(user);
+    } catch (err) {
+        return res.status(500).json({ message: 'Server error' });
+    }
+}
+
+const editAdminProfile = async (req, res) => {
+    try {
+        const updates = req.body; // e.g., { username, email, phone }
+        const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true }).select('-password');
+        return res.json(user);
+    } catch (err) {
+        return res.status(500).json({ message: 'Server error' });
+    }
+}
+
+const deleteAdminProfile = async (req, res) => {
+    try {
+        const deletedUser = await User.findByIdAndDelete(req.params.id);
+        if (!deletedUser) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+        res.status(200).json({ success: true, data: deletedUser });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "Server Error" });
+    }
+}
+
+module.exports = { userRegister, userLogin, testController, forgotPasswordController, resetPasswordController, verfifyController, userDetails, userStatus, userProfile, editProfile, deleteProfile,adminProfile,editAdminProfile,deleteAdminProfile }
