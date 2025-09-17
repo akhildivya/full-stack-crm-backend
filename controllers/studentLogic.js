@@ -44,10 +44,18 @@ const uploadSheetDetails = async (req, res) => {
     const invalidRows = [];
 
     data.forEach((row, idx) => {
-      // normalize fields
+      const lowerRow = {};
+      Object.keys(row).forEach(k => {
+        lowerRow[k.toLowerCase().trim()] = row[k];
+      });
+
       const rec = {};
       ALLOWED.forEach(field => {
-        rec[field] = row[field] !== undefined && row[field] !== null ? String(row[field]).trim() : '';
+        // using lowercase field
+        const val = lowerRow[field] !== undefined && lowerRow[field] !== null
+          ? String(lowerRow[field]).trim()
+          : '';
+        rec[field] = val;
       });
 
       // validate
@@ -74,7 +82,13 @@ const uploadSheetDetails = async (req, res) => {
       }
 
       // filter by unique keys: prefer email match, else phone
-      const filter = { email: rec.email };
+      const filter = {
+        $or: [
+          { email: rec.email },
+          { phone: rec.phone }
+        ]
+      };
+
       // you may decide to require both unique constraints
       const update = { $set: rec };
 
