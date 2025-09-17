@@ -32,6 +32,7 @@ router.get('/admin-profile',requireSignIn,isAdmin,user.adminProfile)
 router.put('/admin-profile',requireSignIn,isAdmin,user.editAdminProfile)
 router.delete('/admin-delete/:id',requireSignIn,isAdmin,user.deleteAdminProfile)
 
+
 router.post('/admin/upload-sheet',requireSignIn,isAdmin,student.uploadSheetDetails)
 
 
