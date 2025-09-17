@@ -9,7 +9,7 @@ const PORT=4000 || process.env.PORT
 
 
 server.use(cors())
-server.use(express.json())
+server.use(express.json({ limit: '10mb' }))
 server.use(router)
 
 server.listen(PORT,()=>{

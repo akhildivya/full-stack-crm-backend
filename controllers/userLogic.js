@@ -2,6 +2,7 @@ const User = require('../model/userModel')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const nodemailer = require('nodemailer');
+
 const userRegister = async (req, res) => {
 
     try {
@@ -211,5 +212,16 @@ const deleteAdminProfile = async (req, res) => {
         res.status(500).json({ success: false, error: "Server Error" });
     }
 }
+const adminStatus = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.json({ verified: user.verified });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
 
-module.exports = { userRegister, userLogin, testController, forgotPasswordController, resetPasswordController, verfifyController, userDetails, userStatus, userProfile, editProfile, deleteProfile,adminProfile,editAdminProfile,deleteAdminProfile }
+module.exports = { userRegister, userLogin, testController, forgotPasswordController, resetPasswordController, verfifyController, userDetails, userStatus, userProfile, editProfile, deleteProfile,adminProfile,editAdminProfile,deleteAdminProfile, adminStatus }

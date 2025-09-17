@@ -1,5 +1,6 @@
 
 const user=require('../controllers/userLogic')
+const student=require('../controllers/studentLogic')
 const { requireSignIn,isAdmin } = require('../middlewares/authMiddleware')
 
 const express=require('express')
@@ -26,7 +27,15 @@ router.get('/admin-auth',requireSignIn,isAdmin,(req,res)=>{
     res.status(200).send({ok:true})
 })
 router.put('/verify/:id',requireSignIn, isAdmin,user.verfifyController)
+router.get('/admin-status',requireSignIn,isAdmin,user.adminStatus)
 router.get('/admin-profile',requireSignIn,isAdmin,user.adminProfile)
 router.put('/admin-profile',requireSignIn,isAdmin,user.editAdminProfile)
 router.delete('/admin-delete/:id',requireSignIn,isAdmin,user.deleteAdminProfile)
+
+router.post('/admin/upload-sheet',requireSignIn,isAdmin,student.uploadSheetDetails)
+
+
+
+
+
 module.exports=router
