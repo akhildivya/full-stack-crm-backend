@@ -88,9 +88,19 @@ const uploadSheetDetails = async (req, res) => {
           { phone: rec.phone }
         ]
       };
+      const setObj = {};
+      const setOnInsert = {};
+      ALLOWED.forEach(f => {
+        if (rec[f] !== '') setObj[f] = rec[f];          // update existing docs only when value present
+        else setOnInsert[f] = rec[f];                  // if you want inserted doc to have blanks, optional
+      });
+
+      const update = {};
+      if (Object.keys(setObj).length) update.$set = setObj;
+      if (Object.keys(setOnInsert).length) update.$setOnInsert = setOnInsert;
 
       // you may decide to require both unique constraints
-      const update = { $set: rec };
+      
 
       bulkOps.push({
         updateOne: {
