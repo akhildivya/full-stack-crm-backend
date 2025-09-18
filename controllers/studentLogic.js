@@ -42,7 +42,6 @@ const uploadSheetDetails = async (req, res) => {
 
     const bulkOps = [];
     const invalidRows = [];
-     const alreadyExistsRows = [];
 
     data.forEach((row, idx) => {
       const lowerRow = {};
@@ -105,8 +104,8 @@ const uploadSheetDetails = async (req, res) => {
 
       bulkOps.push({
         updateOne: {
-          filter: { $or: [ { email: rec.email }, { phone: rec.phone } ] },
-          update: { $set: rec },
+          filter,
+          update,
           upsert: true
         }
       });
@@ -117,9 +116,7 @@ const uploadSheetDetails = async (req, res) => {
         insertedCount: 0,
         modifiedCount: 0,
         invalidCount: invalidRows.length,
-        invalidRows,
-        alreadyExistsCount: 0,
-        alreadyExistsRows: []
+        invalidRows
       });
     }
 
@@ -128,57 +125,12 @@ const uploadSheetDetails = async (req, res) => {
     // bulkResult fields depend on version; Mongoose wraps results somewhat
     const insertedCount = bulkResult.upsertedCount || 0;
     const modifiedCount = bulkResult.modifiedCount || 0;
- const existingDocs = await student.find({
-      $or: data
-        .filter((row, idx) => {
-          // filter only the valid ones
-          // replicate the validation logic or reuse invalidRows to skip
-          return true;  
-        })
-        .map(row => ({
-          $or: [ { email: row.email }, { phone: row.phone } ]
-        }))
-    }, { email: 1, phone: 1 }).lean();
-
-    // Build a set of existing unique keys:
-    const existingSet = new Set();
-    existingDocs.forEach(doc => {
-      if (doc.email) existingSet.add(`email:${doc.email}`);
-      if (doc.phone) existingSet.add(`phone:${doc.phone}`);
-    });
-
-    // Now loop again over data to mark which indexes already exist
-    const alreadyExists = [];
-    data.forEach((row, idx) => {
-      const lowerRow = {};
-      Object.keys(row).forEach(k => {
-        lowerRow[k.toLowerCase().trim()] = row[k];
-      });
-      // clean rec
-      const rec = {};
-      ALLOWED.forEach(field => {
-        const val = lowerRow[field] !== undefined && lowerRow[field] !== null
-          ? String(lowerRow[field]).trim()
-          : '';
-        rec[field] = val;
-      });
-
-      const keyEmail = `email:${rec.email}`;
-      const keyPhone = `phone:${rec.phone}`;
-      // if no error in invalidRows and key in existingSet
-      const isInvalid = invalidRows.some(ir => ir.rowIndex === idx);
-      if (!isInvalid && ( existingSet.has(keyEmail) || existingSet.has(keyPhone)) ) {
-        alreadyExists.push({ rowIndex: idx, rec });
-      }
-    });
 
     return res.json({
       insertedCount,
       modifiedCount,
       invalidCount: invalidRows.length,
-      invalidRows,
-      alreadyExistsCount: alreadyExists.length,
-      alreadyExistsRows: alreadyExists
+      invalidRows
     });
 
   } catch (err) {
