@@ -1,24 +1,16 @@
-// controllers/uploadController.js (or wherever)
+// controllers/uploadController.js
 const student = require('../model/customerModel');
 const ALLOWED = ['name', 'email', 'phone', 'course', 'place'];
 
 const uploadSheetDetails = async (req, res) => {
-  function isValidName(name) {
-    return /^[A-Za-z\s'-]{2,50}$/.test(name);
-  }
+  function isValidName(name) { return /^[A-Za-z\s'-]{2,50}$/.test(name); }
   function isEmail(v) {
     if (!v) return false;
     return /^([\w-.]+@([\w-]+\.)+[\w-]{2,})$/.test(String(v).toLowerCase());
   }
-  function isValidPhone(phone) {
-    return /^\d{10}$/.test(phone);
-  }
-  function isValidCourse(course) {
-    return /^[A-Za-z\s]{2,100}$/.test(course);
-  }
-  function isValidPlace(place) {
-    return /^[A-Za-z\s]{2,100}$/.test(place);
-  }
+  function isValidPhone(phone) { return /^\d{10}$/.test(phone); }
+  function isValidCourse(course) { return /^[A-Za-z\s]{2,100}$/.test(course); }
+  function isValidPlace(place) { return /^[A-Za-z\s]{2,100}$/.test(place); }
 
   try {
     const { data } = req.body;
@@ -26,29 +18,64 @@ const uploadSheetDetails = async (req, res) => {
       return res.status(400).json({ error: 'no_data', message: 'Data array is empty or missing' });
     }
 
-    // Normalize keys of the first record and test presence of required fields
+    // Normalize keys in first record, check required fields
     const first = data[0] || {};
     const firstKeys = Object.keys(first).map(k => String(k).toLowerCase().trim());
-
-    // Important change: do NOT fail on extra metadata keys.
-    // Only error when required columns are missing.
     const missing = ALLOWED.filter(k => !firstKeys.includes(k));
     if (missing.length > 0) {
       return res.status(400).json({ error: 'columns_mismatch', missing, expected: ALLOWED });
     }
 
-    // proceed to validate rows and build bulk operations
-    const bulkOps = [];
     const invalidRows = [];
+    const alreadyExisting = [];  // new: to collect which input rows correspond to already-existing docs
+
+    // First: find which inputs already exist in DB
+    // Build queries
+    // For efficiency, you can do something like:
+    //   student.find({ $or: [ { email: { $in: allEmails } }, { phone: { $in: allPhones } } ] })
+    // Then for each such existing record, map back to the input rows.
+
+    // Extract all emails / phones from data
+    const emails = [];
+    const phones = [];
+    data.forEach((row, idx) => {
+      const lowerRow = {};
+      Object.keys(row).forEach(k => {
+        lowerRow[String(k).toLowerCase().trim()] = row[k];
+      });
+      const rec = {};
+      ALLOWED.forEach(field => {
+        const val = lowerRow[field] !== undefined && lowerRow[field] !== null
+          ? String(lowerRow[field]).trim()
+          : '';
+        rec[field] = val;
+      });
+      // store for matching
+      if (rec.email) emails.push(rec.email);
+      if (rec.phone) phones.push(rec.phone);
+    });
+
+    // Query existing docs
+    const existingDocs = await student.find({
+      $or: [
+        { email: { $in: emails } },
+        { phone: { $in: phones } }
+      ]
+    }).lean();
+
+    // Now map existingDocs so we can check each input row
+    const existingEmailsSet = new Set(existingDocs.map(doc => doc.email));
+    const existingPhonesSet = new Set(existingDocs.map(doc => doc.phone));
+
+    // Build bulkOps only for inputs (if you want upsert, you may still upsert but mark existing)
+    const bulkOps = [];
 
     data.forEach((row, idx) => {
-      // create lowercased key map
+      // normalize row
       const lowerRow = {};
       Object.keys(row || {}).forEach(k => {
         lowerRow[String(k).toLowerCase().trim()] = row[k];
       });
-
-      // map to canonical fields only
       const rec = {};
       ALLOWED.forEach(field => {
         const val = lowerRow[field] !== undefined && lowerRow[field] !== null
@@ -57,7 +84,7 @@ const uploadSheetDetails = async (req, res) => {
         rec[field] = val;
       });
 
-      // validate per-row
+      // validate
       const rowErrors = [];
       if (!rec.name) rowErrors.push('name missing');
       else if (!isValidName(rec.name)) rowErrors.push('name invalid; only letters, spaces, hyphen allowed, length 2-50');
@@ -79,7 +106,12 @@ const uploadSheetDetails = async (req, res) => {
         return;
       }
 
-      // prepare bulk updateOne/upsert
+      // check if this rec already exists
+      if (existingEmailsSet.has(rec.email) || existingPhonesSet.has(rec.phone)) {
+        alreadyExisting.push({ rowIndex: idx, rec });
+      }
+
+      // still include in bulk write (using upsert: true) so it updates existing or inserts new
       const filter = {
         $or: [
           { email: rec.email },
@@ -92,7 +124,6 @@ const uploadSheetDetails = async (req, res) => {
         if (rec[f] !== '') setObj[f] = rec[f];
         else setOnInsert[f] = rec[f];
       });
-
       const update = {};
       if (Object.keys(setObj).length) update.$set = setObj;
       if (Object.keys(setOnInsert).length) update.$setOnInsert = setOnInsert;
@@ -111,13 +142,13 @@ const uploadSheetDetails = async (req, res) => {
         insertedCount: 0,
         modifiedCount: 0,
         invalidCount: invalidRows.length,
-        invalidRows
+        invalidRows,
+        alreadyExisting  // new
       });
     }
 
     const bulkResult = await student.bulkWrite(bulkOps, { ordered: false });
 
-    // extract counts safely — differ by driver/versions
     const insertedCount = bulkResult.upsertedCount || bulkResult.insertedCount || 0;
     const modifiedCount = bulkResult.modifiedCount || bulkResult.nModified || 0;
 
@@ -125,7 +156,8 @@ const uploadSheetDetails = async (req, res) => {
       insertedCount,
       modifiedCount,
       invalidCount: invalidRows.length,
-      invalidRows
+      invalidRows,
+      alreadyExisting   // new: send to frontend
     });
 
   } catch (err) {
