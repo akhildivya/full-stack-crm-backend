@@ -1,10 +1,9 @@
-const student = require('../model/customerModel')
+// controllers/uploadController.js (or wherever)
+const student = require('../model/customerModel');
 const ALLOWED = ['name', 'email', 'phone', 'course', 'place'];
-
 
 const uploadSheetDetails = async (req, res) => {
   function isValidName(name) {
-    // Letters, spaces, hyphens/apostrophes allowed; at least 2 characters
     return /^[A-Za-z\s'-]{2,50}$/.test(name);
   }
   function isEmail(v) {
@@ -12,60 +11,59 @@ const uploadSheetDetails = async (req, res) => {
     return /^([\w-.]+@([\w-]+\.)+[\w-]{2,})$/.test(String(v).toLowerCase());
   }
   function isValidPhone(phone) {
-    // Example: digits only, exactly 10 digits
-
     return /^\d{10}$/.test(phone);
   }
   function isValidCourse(course) {
-    // At least 2 chars, letters and spaces
     return /^[A-Za-z\s]{2,100}$/.test(course);
   }
-
   function isValidPlace(place) {
-    // At least 2 chars, letters and spaces
     return /^[A-Za-z\s]{2,100}$/.test(place);
   }
+
   try {
     const { data } = req.body;
     if (!Array.isArray(data) || data.length === 0) {
       return res.status(400).json({ error: 'no_data', message: 'Data array is empty or missing' });
     }
-    // check columns in first record
-    const first = data[0];
-    const keys = Object.keys(first).map(k => k.toLowerCase().trim());
-    const extra = keys.filter(k => k && !ALLOWED.includes(k));
-    const missing = ALLOWED.filter(k => !keys.includes(k));
 
-    if (extra.length > 0 || missing.length > 0) {
-      return res.status(400).json({ error: 'columns_mismatch', extra, missing, expected: ALLOWED });
+    // Normalize keys of the first record and test presence of required fields
+    const first = data[0] || {};
+    const firstKeys = Object.keys(first).map(k => String(k).toLowerCase().trim());
+
+    // Important change: do NOT fail on extra metadata keys.
+    // Only error when required columns are missing.
+    const missing = ALLOWED.filter(k => !firstKeys.includes(k));
+    if (missing.length > 0) {
+      return res.status(400).json({ error: 'columns_mismatch', missing, expected: ALLOWED });
     }
 
+    // proceed to validate rows and build bulk operations
     const bulkOps = [];
     const invalidRows = [];
 
     data.forEach((row, idx) => {
+      // create lowercased key map
       const lowerRow = {};
-      Object.keys(row).forEach(k => {
-        lowerRow[k.toLowerCase().trim()] = row[k];
+      Object.keys(row || {}).forEach(k => {
+        lowerRow[String(k).toLowerCase().trim()] = row[k];
       });
 
+      // map to canonical fields only
       const rec = {};
       ALLOWED.forEach(field => {
-        // using lowercase field
         const val = lowerRow[field] !== undefined && lowerRow[field] !== null
           ? String(lowerRow[field]).trim()
           : '';
         rec[field] = val;
       });
 
-      // validate
+      // validate per-row
       const rowErrors = [];
       if (!rec.name) rowErrors.push('name missing');
       else if (!isValidName(rec.name)) rowErrors.push('name invalid; only letters, spaces, hyphen allowed, length 2-50');
 
       if (!rec.email) rowErrors.push('email missing');
       else if (!isEmail(rec.email)) rowErrors.push('email invalid');
-
 
       if (!rec.phone) rowErrors.push('phone missing');
       else if (!isValidPhone(rec.phone)) rowErrors.push('phone invalid; must be 10 digits');
@@ -81,7 +79,7 @@ const uploadSheetDetails = async (req, res) => {
         return;
       }
 
-      // filter by unique keys: prefer email match, else phone
+      // prepare bulk updateOne/upsert
       const filter = {
         $or: [
           { email: rec.email },
@@ -91,16 +89,13 @@ const uploadSheetDetails = async (req, res) => {
       const setObj = {};
       const setOnInsert = {};
       ALLOWED.forEach(f => {
-        if (rec[f] !== '') setObj[f] = rec[f];          // update existing docs only when value present
-        else setOnInsert[f] = rec[f];                  // if you want inserted doc to have blanks, optional
+        if (rec[f] !== '') setObj[f] = rec[f];
+        else setOnInsert[f] = rec[f];
       });
 
       const update = {};
       if (Object.keys(setObj).length) update.$set = setObj;
       if (Object.keys(setOnInsert).length) update.$setOnInsert = setOnInsert;
-
-      // you may decide to require both unique constraints
-      
 
       bulkOps.push({
         updateOne: {
@@ -122,9 +117,9 @@ const uploadSheetDetails = async (req, res) => {
 
     const bulkResult = await student.bulkWrite(bulkOps, { ordered: false });
 
-    // bulkResult fields depend on version; Mongoose wraps results somewhat
-    const insertedCount = bulkResult.upsertedCount || 0;
-    const modifiedCount = bulkResult.modifiedCount || 0;
+    // extract counts safely — differ by driver/versions
+    const insertedCount = bulkResult.upsertedCount || bulkResult.insertedCount || 0;
+    const modifiedCount = bulkResult.modifiedCount || bulkResult.nModified || 0;
 
     return res.json({
       insertedCount,
@@ -135,12 +130,11 @@ const uploadSheetDetails = async (req, res) => {
 
   } catch (err) {
     console.error('Upload error:', err);
-    // duplicate key / index errors may show up
     if (err.code === 11000) {
       return res.status(409).json({ error: 'duplicate_key', message: err.message });
     }
     return res.status(500).json({ error: 'server_error', message: err.message });
   }
-}
+};
 
-module.exports = { uploadSheetDetails }
+module.exports = { uploadSheetDetails };
