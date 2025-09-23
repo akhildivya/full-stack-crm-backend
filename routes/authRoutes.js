@@ -34,7 +34,7 @@ router.delete('/admin-delete/:id',requireSignIn,isAdmin,user.deleteAdminProfile)
 
 
 router.post('/admin/upload-sheet',requireSignIn,isAdmin,student.uploadSheetDetails)
-
+router.get('/admin/view-students',requireSignIn,isAdmin,student.viewStudController)
 
 
 

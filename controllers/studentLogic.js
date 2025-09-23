@@ -169,4 +169,13 @@ const uploadSheetDetails = async (req, res) => {
   }
 };
 
-module.exports = { uploadSheetDetails };
+const viewStudController=async(req,res)=>{
+  try {
+    const students = await student.find() // remove __v if you want
+    res.json(students); 
+  } catch (error) {
+    console.error('Error fetching students:', error);
+    res.status(500).json({ error: 'Server error fetching students' });
+  }
+}
+module.exports = { uploadSheetDetails,viewStudController };
