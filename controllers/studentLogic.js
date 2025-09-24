@@ -221,4 +221,17 @@ const deleteStudController=async(req,res)=>{
         res.status(500).json({ message: 'Server error' });
     }
 }
-module.exports = { uploadSheetDetails,viewStudController, editStudController,deleteStudController };
+const bulkDeleteController=async(req,res)=>{
+  const { ids } = req.body;  // array of ids
+  if (!ids || !Array.isArray(ids)) {
+    return res.status(400).json({ error: 'ids array required' });
+  }
+  try {
+    await student.deleteMany({ _id: { $in: ids } });
+    return res.json({ success: true, deletedCount: ids.length });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Error deleting many students' });
+  }
+}
+module.exports = { uploadSheetDetails,viewStudController, editStudController,deleteStudController,bulkDeleteController };

@@ -37,7 +37,7 @@ router.post('/admin/upload-sheet',requireSignIn,isAdmin,student.uploadSheetDetai
 router.get('/admin/view-students',requireSignIn,isAdmin,student.viewStudController)
 router.put('/admin/update-student/:id',requireSignIn,isAdmin,student.editStudController)
 router.delete('/admin/delete-student/:id',requireSignIn,isAdmin,student.deleteStudController)
-
+router.delete('/admin/bulk-delete-students',requireSignIn,isAdmin,student.bulkDeleteController)
 
 
 
