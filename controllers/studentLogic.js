@@ -1,4 +1,7 @@
 // controllers/uploadController.js
+
+const mongoose = require('mongoose');
+
 const student = require('../model/customerModel');
 const ALLOWED = ['name', 'email', 'phone', 'course', 'place'];
 
@@ -178,4 +181,44 @@ const viewStudController=async(req,res)=>{
     res.status(500).json({ error: 'Server error fetching students' });
   }
 }
-module.exports = { uploadSheetDetails,viewStudController };
+
+const editStudController=async(req,res)=>{
+  try {
+        const updatedStudent = await student.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true }
+        );
+        if (!updatedStudent) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
+        res.json(updatedStudent);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+
+const deleteStudController=async(req,res)=>{
+  const { id } = req.params;
+
+    try {
+        // Validate the ObjectId
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Invalid student ID' });
+        }
+
+        // Find and delete the student
+        const Student = await student.findByIdAndDelete(id);
+
+        if (!Student) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
+
+        res.status(200).json({ message: 'Student deleted successfully' });
+    } catch (err) {
+        console.error('Error deleting student:', err);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+module.exports = { uploadSheetDetails,viewStudController, editStudController,deleteStudController };
