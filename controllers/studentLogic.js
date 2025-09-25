@@ -234,4 +234,21 @@ const bulkDeleteController=async(req,res)=>{
     return res.status(500).json({ error: 'Error deleting many students' });
   }
 }
-module.exports = { uploadSheetDetails,viewStudController, editStudController,deleteStudController,bulkDeleteController };
+
+const assignStudController=async(req,res)=>{
+  const { studentIds, userId } = req.body;
+  if (!studentIds || !userId) {
+    return res.status(400).json({ message: 'studentIds and userId required' });
+  }
+
+  try {
+    await student.updateMany(
+      { _id: { $in: studentIds } },
+      { $set: { assignedTo: userId } }
+    );
+    res.json({ message: 'Students assigned successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error assigning students', error: err });
+  }
+}
+module.exports = { uploadSheetDetails,viewStudController, editStudController,deleteStudController,bulkDeleteController,assignStudController };

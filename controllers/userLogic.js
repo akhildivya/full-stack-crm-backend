@@ -223,5 +223,13 @@ const adminStatus = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 }
+const getUsersController=async(req,res)=>{
+    try {
+    const users = await User.find({ userType: 'User' }).select('_id username');
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching users', error: err });
+  }
+}
 
-module.exports = { userRegister, userLogin, testController, forgotPasswordController, resetPasswordController, verfifyController, userDetails, userStatus, userProfile, editProfile, deleteProfile,adminProfile,editAdminProfile,deleteAdminProfile, adminStatus }
+module.exports = { userRegister, userLogin, testController, forgotPasswordController, resetPasswordController, verfifyController, userDetails, userStatus, userProfile, editProfile, deleteProfile,adminProfile,editAdminProfile,deleteAdminProfile, adminStatus,getUsersController }

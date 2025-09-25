@@ -19,7 +19,8 @@ const studentSchema = new mongoose.Schema({
         index: { unique: true }
     },
     course: { type: String, required: true, trim: true },
-    place: { type: String, required: true, trim: true }
+    place: { type: String, required: true, trim: true },
+    assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 }, { timestamps: true })
 
 const students = mongoose.model('students', studentSchema);

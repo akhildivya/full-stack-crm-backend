@@ -38,6 +38,8 @@ router.get('/admin/view-students',requireSignIn,isAdmin,student.viewStudControll
 router.put('/admin/update-student/:id',requireSignIn,isAdmin,student.editStudController)
 router.delete('/admin/delete-student/:id',requireSignIn,isAdmin,student.deleteStudController)
 router.delete('/admin/bulk-delete-students',requireSignIn,isAdmin,student.bulkDeleteController)
+router.get('/admin/get-users',requireSignIn,isAdmin,user.getUsersController)
+router.put('/admin/assign-students',requireSignIn,isAdmin,student.assignStudController)
 
 
 
