@@ -41,6 +41,6 @@ router.delete('/admin/bulk-delete-students',requireSignIn,isAdmin,student.bulkDe
 router.get('/admin/get-users',requireSignIn,isAdmin,user.getUsersController)
 router.put('/admin/assign-students',requireSignIn,isAdmin,student.assignStudController)
 
-
-
+router.get('/admin/unverified',requireSignIn,isAdmin,user.unVerifiedController)
+router.get('/admin/user-overview',requireSignIn,isAdmin,user.overviewController)
 module.exports=router

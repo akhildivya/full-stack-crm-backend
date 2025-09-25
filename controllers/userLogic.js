@@ -231,5 +231,52 @@ const getUsersController=async(req,res)=>{
     res.status(500).json({ message: 'Error fetching users', error: err });
   }
 }
+const unVerifiedController=async(req,res)=>{
+     try {
+    const users = await User.find({ verified: false });
+    res.json(users);
+  } catch (error) {
+    res.status(500).send('Error fetching unverified users.');
+  }
+}
+const overviewController=async(req,res)=>{
+    try {
+    // Base filter: only those with userType = "User"
+    const baseFilter = { userType: "User" };
 
-module.exports = { userRegister, userLogin, testController, forgotPasswordController, resetPasswordController, verfifyController, userDetails, userStatus, userProfile, editProfile, deleteProfile,adminProfile,editAdminProfile,deleteAdminProfile, adminStatus,getUsersController }
+    // Total users (of type "User")
+    const totalUsers = await User.countDocuments(baseFilter);
+
+    // Verified users among them
+    const verifiedUsers = await User.countDocuments({
+      userType: "User",
+      verified: true,
+    });
+
+    // Pending / unverified users among them
+    const pendingUsers = await User.countDocuments({
+      userType: "User",
+      verified: false,
+    });
+
+    // List of new (unverified) users of type "User"
+    const newUsers = await User.find({
+      userType: "User",
+      verified: false,
+    })
+      .sort({ createdAt: -1 })
+      .limit(10).select("username email createdAt");
+
+    return res.json({
+      totalUsers,
+      verifiedUsers,
+      pendingUsers,
+      newUsers,
+    });
+  } catch (err) {
+    console.error("Error fetching admin overview:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+}
+
+module.exports = { userRegister, userLogin, testController, forgotPasswordController, resetPasswordController, verfifyController, userDetails, userStatus, userProfile, editProfile, deleteProfile,adminProfile,editAdminProfile,deleteAdminProfile, adminStatus,getUsersController,unVerifiedController,overviewController }
