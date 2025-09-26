@@ -251,4 +251,28 @@ const assignStudController=async(req,res)=>{
     res.status(500).json({ message: 'Error assigning students', error: err });
   }
 }
-module.exports = { uploadSheetDetails,viewStudController, editStudController,deleteStudController,bulkDeleteController,assignStudController };
+const leadsOverviewController=async(req,res)=>{
+   try {
+    // total students
+    const totalStudents = await student.countDocuments();
+
+    // leads unassigned
+    const unassignedLeads = await student.countDocuments({ assignedTo: null });
+
+    // leads assigned
+    const assignedLeads = await student.countDocuments({ assignedTo: { $ne: null } });
+
+    res.json({
+      success: true,
+      data: {
+        totalStudents,
+        unassignedLeads,
+        assignedLeads
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching dashboard stats', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+}
+module.exports = { uploadSheetDetails,viewStudController, editStudController,deleteStudController,bulkDeleteController,assignStudController,leadsOverviewController };

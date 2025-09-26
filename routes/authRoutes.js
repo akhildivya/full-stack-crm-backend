@@ -43,4 +43,5 @@ router.put('/admin/assign-students',requireSignIn,isAdmin,student.assignStudCont
 
 router.get('/admin/unverified',requireSignIn,isAdmin,user.unVerifiedController)
 router.get('/admin/user-overview',requireSignIn,isAdmin,user.overviewController)
+router.get('/admin/leads-overview',requireSignIn,isAdmin,student.leadsOverviewController)
 module.exports=router
