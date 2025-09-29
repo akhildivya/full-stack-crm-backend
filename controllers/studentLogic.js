@@ -1,7 +1,7 @@
 // controllers/uploadController.js
 
 const mongoose = require('mongoose');
-
+const User = require('../model/userModel'); 
 const student = require('../model/customerModel');
 const ALLOWED = ['name', 'email', 'phone', 'course', 'place'];
 
@@ -244,7 +244,7 @@ const assignStudController=async(req,res)=>{
   try {
     await student.updateMany(
       { _id: { $in: studentIds } },
-      { $set: { assignedTo: userId } }
+      { $set: { assignedTo: userId , assignedAt: new Date()} }
     );
     res.json({ message: 'Students assigned successfully' });
   } catch (err) {
@@ -275,4 +275,18 @@ const leadsOverviewController=async(req,res)=>{
     res.status(500).json({ success: false, message: 'Server error' });
   }
 }
-module.exports = { uploadSheetDetails,viewStudController, editStudController,deleteStudController,bulkDeleteController,assignStudController,leadsOverviewController };
+const viewAssignedStudentController=async(req,res)=>{
+  try {
+    // Find students where assignedTo is not null and populate the assigned user
+    const assigned = await student.find({ assignedTo: { $ne: null } })
+      .populate('assignedTo', 'username email') // bring required user fields
+      .sort({ assignedAt: -1 })
+      .lean();
+
+    res.json(assigned);
+  } catch (err) {
+    console.error('Error fetching assigned students', err);
+    res.status(500).json({ message: 'Error fetching assigned students', error: err.message });
+  }
+}
+module.exports = { uploadSheetDetails,viewStudController, editStudController,deleteStudController,bulkDeleteController,assignStudController,leadsOverviewController,viewAssignedStudentController };

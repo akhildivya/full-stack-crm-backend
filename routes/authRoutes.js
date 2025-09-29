@@ -40,6 +40,7 @@ router.delete('/admin/delete-student/:id',requireSignIn,isAdmin,student.deleteSt
 router.delete('/admin/bulk-delete-students',requireSignIn,isAdmin,student.bulkDeleteController)
 router.get('/admin/get-users',requireSignIn,isAdmin,user.getUsersController)
 router.put('/admin/assign-students',requireSignIn,isAdmin,student.assignStudController)
+router.get('/admin/view-assigned-students',requireSignIn,isAdmin,student.viewAssignedStudentController)
 
 router.get('/admin/unverified',requireSignIn,isAdmin,user.unVerifiedController)
 router.get('/admin/user-overview',requireSignIn,isAdmin,user.overviewController)

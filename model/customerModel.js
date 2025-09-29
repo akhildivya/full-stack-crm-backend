@@ -20,7 +20,11 @@ const studentSchema = new mongoose.Schema({
     },
     course: { type: String, required: true, trim: true },
     place: { type: String, required: true, trim: true },
-    assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'users', default: null },
+    assignedAt: {
+        type: Date,
+        default: null
+    }
 }, { timestamps: true })
 
 const students = mongoose.model('students', studentSchema);
