@@ -1,7 +1,6 @@
 // controllers/uploadController.js
 
 const mongoose = require('mongoose');
-const User = require('../model/userModel'); 
 const student = require('../model/customerModel');
 const ALLOWED = ['name', 'email', 'phone', 'course', 'place'];
 
@@ -289,4 +288,49 @@ const viewAssignedStudentController=async(req,res)=>{
     res.status(500).json({ message: 'Error fetching assigned students', error: err.message });
   }
 }
-module.exports = { uploadSheetDetails,viewStudController, editStudController,deleteStudController,bulkDeleteController,assignStudController,leadsOverviewController,viewAssignedStudentController };
+const getUsersAssignmentStats=async(req,res)=>{
+  try {
+    // Aggregation on Student
+    const stats = await student.aggregate([
+      // only students with an assigned user
+      { $match: { assignedTo: { $ne: null } } },
+      // group by assignedTo
+      {
+        $group: {
+          _id: "$assignedTo",
+          count: { $sum: 1 },
+          lastAssigned: { $max: "$assignedAt" }
+        }
+      },
+      // join with users collection to get username, email
+      {
+        $lookup: {
+          from: "users",           // your users collection name
+          localField: "_id",
+          foreignField: "_id",
+          as: "userInfo"
+        }
+      },
+      // unwind the userInfo array
+      { $unwind: "$userInfo" },
+      // project desired fields
+      {
+        $project: {
+          userId: "$_id",
+          username: "$userInfo.username",
+          email: "$userInfo.email",
+          count: 1,
+          lastAssigned: 1
+        }
+      },
+      // optionally sort by count or lastAssigned
+      { $sort: { lastAssigned: -1 } }
+    ]);
+
+    res.json(stats);
+  } catch (err) {
+    console.error("Error getting assignment stats:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+}
+module.exports = { uploadSheetDetails,viewStudController, editStudController,deleteStudController,bulkDeleteController,assignStudController,leadsOverviewController,viewAssignedStudentController,getUsersAssignmentStats };

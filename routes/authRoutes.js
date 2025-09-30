@@ -45,4 +45,5 @@ router.get('/admin/view-assigned-students',requireSignIn,isAdmin,student.viewAss
 router.get('/admin/unverified',requireSignIn,isAdmin,user.unVerifiedController)
 router.get('/admin/user-overview',requireSignIn,isAdmin,user.overviewController)
 router.get('/admin/leads-overview',requireSignIn,isAdmin,student.leadsOverviewController)
+router.get('/admin/users-assignment-stats', requireSignIn,isAdmin,student.getUsersAssignmentStats);
 module.exports=router
