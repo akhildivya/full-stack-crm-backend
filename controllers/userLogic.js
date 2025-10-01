@@ -225,7 +225,7 @@ const adminStatus = async (req, res) => {
 }
 const getUsersController=async(req,res)=>{
     try {
-    const users = await User.find({ userType: 'User',verified: true  }).select('_id username');
+    const users = await User.find({ userType: 'User',verified: true  }).select('_id username email').sort({ username: 1, email: 1 });;
     res.json(users);
   } catch (err) {
     res.status(500).json({ message: 'Error fetching users', error: err });
