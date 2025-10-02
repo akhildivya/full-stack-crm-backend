@@ -333,4 +333,26 @@ const getUsersAssignmentStats=async(req,res)=>{
     res.status(500).json({ message: "Server error", error: err.message });
   }
 }
-module.exports = { uploadSheetDetails,viewStudController, editStudController,deleteStudController,bulkDeleteController,assignStudController,leadsOverviewController,viewAssignedStudentController,getUsersAssignmentStats };
+const getAssignedStudentsController=async(req,res)=>{
+   try {
+    const user = req.user;  // from requireSignIn
+    // Your decode might have _id or userId, depending on how you signed token
+    const userId = user._id || user.userId;
+
+    // Optionally check that user.userType === 'user' (so admin cannot access this)
+    if (user.userType && user.userType !== "User") {
+      return res.status(403).json({ success: false, message: "Forbidden" });
+    }
+
+    const students = await student.find({ assignedTo: userId })
+      .select('name email phone course place assignedAt')  // only needed fields
+      .sort({ assignedAt: -1 });
+
+    return res.json({ success: true, students });
+  } catch (err) {
+    console.error("getAssignedStudents error:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+}
+
+module.exports = { uploadSheetDetails,viewStudController, editStudController,deleteStudController,bulkDeleteController,assignStudController,leadsOverviewController,viewAssignedStudentController,getUsersAssignmentStats,getAssignedStudentsController };

@@ -21,6 +21,8 @@ router.get('/status',requireSignIn,user.userStatus)
 router.get('/my-profile',requireSignIn,user.userProfile)
 router.put('/my-profile',requireSignIn,user.editProfile)
 router.delete('/delete-user/:id',requireSignIn,user.deleteProfile)
+router.get('/assigned-contact-details',requireSignIn,student.getAssignedStudentsController)
+
 
 //Protected Admin Route
 router.get('/admin-auth',requireSignIn,isAdmin,(req,res)=>{
@@ -31,7 +33,6 @@ router.get('/admin-status',requireSignIn,isAdmin,user.adminStatus)
 router.get('/admin-profile',requireSignIn,isAdmin,user.adminProfile)
 router.put('/admin-profile',requireSignIn,isAdmin,user.editAdminProfile)
 router.delete('/admin-delete/:id',requireSignIn,isAdmin,user.deleteAdminProfile)
-
 
 router.post('/admin/upload-sheet',requireSignIn,isAdmin,student.uploadSheetDetails)
 router.get('/admin/view-students',requireSignIn,isAdmin,student.viewStudController)
