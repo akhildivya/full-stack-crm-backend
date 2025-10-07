@@ -2,6 +2,7 @@
 
 const mongoose = require('mongoose');
 const student = require('../model/customerModel');
+const Assignment = require('../model/assignmentSchema')
 const ALLOWED = ['name', 'email', 'phone', 'course', 'place'];
 
 const uploadSheetDetails = async (req, res) => {
@@ -171,56 +172,56 @@ const uploadSheetDetails = async (req, res) => {
   }
 };
 
-const viewStudController=async(req,res)=>{
+const viewStudController = async (req, res) => {
   try {
     const students = await student.find() // remove __v if you want
-    res.json(students); 
+    res.json(students);
   } catch (error) {
     console.error('Error fetching students:', error);
     res.status(500).json({ error: 'Server error fetching students' });
   }
 }
 
-const editStudController=async(req,res)=>{
+const editStudController = async (req, res) => {
   try {
-        const updatedStudent = await student.findByIdAndUpdate(
-            req.params.id,
-            req.body,
-            { new: true }
-        );
-        if (!updatedStudent) {
-            return res.status(404).json({ message: 'Student not found' });
-        }
-        res.json(updatedStudent);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error' });
+    const updatedStudent = await student.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    if (!updatedStudent) {
+      return res.status(404).json({ message: 'Student not found' });
     }
+    res.json(updatedStudent);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
 }
 
-const deleteStudController=async(req,res)=>{
+const deleteStudController = async (req, res) => {
   const { id } = req.params;
 
-    try {
-        // Validate the ObjectId
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).json({ message: 'Invalid student ID' });
-        }
-
-        // Find and delete the student
-        const Student = await student.findByIdAndDelete(id);
-
-        if (!Student) {
-            return res.status(404).json({ message: 'Student not found' });
-        }
-
-        res.status(200).json({ message: 'Student deleted successfully' });
-    } catch (err) {
-        console.error('Error deleting student:', err);
-        res.status(500).json({ message: 'Server error' });
+  try {
+    // Validate the ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid student ID' });
     }
+
+    // Find and delete the student
+    const Student = await student.findByIdAndDelete(id);
+
+    if (!Student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    res.status(200).json({ message: 'Student deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting student:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
 }
-const bulkDeleteController=async(req,res)=>{
+const bulkDeleteController = async (req, res) => {
   const { ids } = req.body;  // array of ids
   if (!ids || !Array.isArray(ids)) {
     return res.status(400).json({ error: 'ids array required' });
@@ -234,24 +235,55 @@ const bulkDeleteController=async(req,res)=>{
   }
 }
 
-const assignStudController=async(req,res)=>{
+const assignStudController = async (req, res) => {
   const { studentIds, userId } = req.body;
   if (!studentIds || !userId) {
     return res.status(400).json({ message: 'studentIds and userId required' });
   }
 
   try {
-    await student.updateMany(
-      { _id: { $in: studentIds } },
-      { $set: { assignedTo: userId , assignedAt: new Date()} }
-    );
-    res.json({ message: 'Students assigned successfully' });
+    const now = new Date();
+
+    for (const stuId of studentIds) {
+      const stu = await student.findById(stuId).populate('assignedTo', 'username');;
+      if (!stu) {
+        console.warn(`Student ${stuId} not found, skipping`);
+        continue;
+      }
+
+      // If already assigned to someone, mark that assignment's unassignedAt
+      if (stu.assignedTo) {
+        await Assignment.findOneAndUpdate(
+          { student: stu._id, user: stu.assignedTo, unassignedAt: null },
+          { $set: { unassignedAt: now } }
+        ).exec();
+      }
+      else {
+        console.warn(`Student ${stuId} is not assigned to any user.`);
+      }
+      // Create a new assignment history record
+      const newAssign = new Assignment({
+        student: stu._id,
+        user: userId,
+        assignedAt: now,
+        unassignedAt: null
+      });
+      await newAssign.save();
+
+      // Update student’s current assignment
+      stu.assignedTo = userId;
+      stu.assignedAt = now;
+      await stu.save();
+    }
+
+    return res.json({ message: 'Students assigned (with history) successfully' });
   } catch (err) {
-    res.status(500).json({ message: 'Error assigning students', error: err });
+    console.error('Error in assignStudents:', err);
+    return res.status(500).json({ message: 'Error assigning students', error: err.message });
   }
 }
-const leadsOverviewController=async(req,res)=>{
-   try {
+const leadsOverviewController = async (req, res) => {
+  try {
     // total students
     const totalStudents = await student.countDocuments();
 
@@ -274,22 +306,45 @@ const leadsOverviewController=async(req,res)=>{
     res.status(500).json({ success: false, message: 'Server error' });
   }
 }
-const viewAssignedStudentController=async(req,res)=>{
+const viewAssignedStudentController = async (req, res) => {
   try {
-    // Find students where assignedTo is not null and populate the assigned user
-    const assigned = await student.find({ assignedTo: { $ne: null } })
-      .populate('assignedTo', 'username email') // bring required user fields
-      .sort({ assignedAt: -1 })
+    // Fetch students that are currently assigned
+    const students = await student.find({ assignedTo: { $ne: null } })
+      .populate('assignedTo', 'username email')
       .lean();
 
-    res.json(assigned);
+    // Also fetch all assignment history for those students
+    const studentIds = students.map(stu => stu._id);
+    const assignments = await Assignment.find({ student: { $in: studentIds } })
+      .populate('user', 'username email')
+      .sort({ assignedAt: 1 })  // chronological
+      .lean();
+
+    // Organize assignments per student
+    const assignMap = {};
+    for (const a of assignments) {
+      const sid = String(a.student);
+      if (!assignMap[sid]) assignMap[sid] = [];
+      assignMap[sid].push(a);
+    }
+
+    // Merge into students
+    const result = students.map(stu => {
+       stu.assignedTo = stu.assignedTo || null;
+      return {
+        ...stu,
+        assignments: assignMap[String(stu._id)] || []
+      };
+    });
+
+    return res.json(result);
   } catch (err) {
-    console.error('Error fetching assigned students', err);
-    res.status(500).json({ message: 'Error fetching assigned students', error: err.message });
+    console.error('Error in viewAssignedWithHistory:', err);
+    return res.status(500).json({ message: 'Error fetching assigned students', error: err.message });
   }
 }
-const getUsersAssignmentStats=async(req,res)=>{
-  try {
+const getUsersAssignmentStats = async (req, res) => {
+   try {
     // Aggregation on Student
     const stats = await student.aggregate([
       // only students with an assigned user
@@ -333,8 +388,8 @@ const getUsersAssignmentStats=async(req,res)=>{
     res.status(500).json({ message: "Server error", error: err.message });
   }
 }
-const getAssignedStudentsController=async(req,res)=>{
-   try {
+const getAssignedStudentsController = async (req, res) => {
+  try {
     const user = req.user;  // from requireSignIn
     // Your decode might have _id or userId, depending on how you signed token
     const userId = user._id || user.userId;
@@ -354,5 +409,22 @@ const getAssignedStudentsController=async(req,res)=>{
     return res.status(500).json({ success: false, message: "Server error" });
   }
 }
+const getAssignedStudentsByDate=async(req,res)=>{
+   try {
+    const { date } = req.params;
+    const startOfDay = new Date(date);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
 
-module.exports = { uploadSheetDetails,viewStudController, editStudController,deleteStudController,bulkDeleteController,assignStudController,leadsOverviewController,viewAssignedStudentController,getUsersAssignmentStats,getAssignedStudentsController };
+    const students = await student.find({
+      assignedAt: { $gte: startOfDay, $lte: endOfDay },
+      assignedTo: req.user._id,
+    }).select('name assignedAt');
+
+    res.json({ success: true, students });
+  } catch (err) {
+    console.error("Error fetching assigned students:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+}
+module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController,getAssignedStudentsByDate };

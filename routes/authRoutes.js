@@ -22,7 +22,7 @@ router.get('/my-profile',requireSignIn,user.userProfile)
 router.put('/my-profile',requireSignIn,user.editProfile)
 router.delete('/delete-user/:id',requireSignIn,user.deleteProfile)
 router.get('/assigned-contact-details',requireSignIn,student.getAssignedStudentsController)
-
+router.get('/assigned-students/:date',requireSignIn,student.getAssignedStudentsByDate)
 
 //Protected Admin Route
 router.get('/admin-auth',requireSignIn,isAdmin,(req,res)=>{
