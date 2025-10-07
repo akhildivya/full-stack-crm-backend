@@ -258,9 +258,9 @@ const assignStudController = async (req, res) => {
           { $set: { unassignedAt: now } }
         ).exec();
       }
-      else {
-        console.warn(`Student ${stuId} is not assigned to any user.`);
-      }
+     {/* else {
+       {/* console.warn(`Student ${stuId} is not assigned to any user.`);}
+      }*/}
       // Create a new assignment history record
       const newAssign = new Assignment({
         student: stu._id,
@@ -427,4 +427,23 @@ const getAssignedStudentsByDate=async(req,res)=>{
     res.status(500).json({ success: false, message: "Server error" });
   }
 }
-module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController,getAssignedStudentsByDate };
+const deleteAssignedStudentsByDate = async (req, res) => {
+  try {
+    const { date } = req.params;
+    const startOfDay = new Date(date);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    await student.deleteMany({
+      assignedAt: { $gte: startOfDay, $lte: endOfDay },
+      assignedTo: req.user._id,
+    });
+
+    res.json({ success: true, message: "Notifications deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting notifications:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController,getAssignedStudentsByDate,deleteAssignedStudentsByDate };
