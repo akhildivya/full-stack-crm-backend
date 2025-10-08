@@ -258,7 +258,7 @@ const assignStudController = async (req, res) => {
           { $set: { unassignedAt: now } }
         ).exec();
       }
-     {/* else {
+      {/* else {
        {/* console.warn(`Student ${stuId} is not assigned to any user.`);}
       }*/}
       // Create a new assignment history record
@@ -330,7 +330,7 @@ const viewAssignedStudentController = async (req, res) => {
 
     // Merge into students
     const result = students.map(stu => {
-       stu.assignedTo = stu.assignedTo || null;
+      stu.assignedTo = stu.assignedTo || null;
       return {
         ...stu,
         assignments: assignMap[String(stu._id)] || []
@@ -344,7 +344,7 @@ const viewAssignedStudentController = async (req, res) => {
   }
 }
 const getUsersAssignmentStats = async (req, res) => {
-   try {
+  try {
     // Aggregation on Student
     const stats = await student.aggregate([
       // only students with an assigned user
@@ -400,8 +400,9 @@ const getAssignedStudentsController = async (req, res) => {
     }
 
     const students = await student.find({ assignedTo: userId })
-      .select('name email phone course place assignedAt')  // only needed fields
-      .sort({ assignedAt: -1 });
+      .select('name email phone course place assignedAt callInfo')  // only needed fields
+      .sort({ assignedAt: -1 })
+       .lean();
 
     return res.json({ success: true, students });
   } catch (err) {
@@ -409,8 +410,8 @@ const getAssignedStudentsController = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error" });
   }
 }
-const getAssignedStudentsByDate=async(req,res)=>{
-   try {
+const getAssignedStudentsByDate = async (req, res) => {
+  try {
     const { date } = req.params;
     const startOfDay = new Date(date);
     const endOfDay = new Date(date);
@@ -445,5 +446,98 @@ const deleteAssignedStudentsByDate = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+const studentCallStatusController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    let updateData = { ...req.body };
 
-module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController,getAssignedStudentsByDate,deleteAssignedStudentsByDate };
+    if (updateData.interested === "yes") updateData.interested = true;
+    else if (updateData.interested === "no") updateData.interested = false;
+    else if (updateData.interested === "") updateData.interested = null;
+
+    if (updateData.callDuration === "") updateData.callDuration = null;
+    if (updateData.planType === "") updateData.planType = null;
+    if (updateData.callStatus === "") updateData.callStatus = null;
+
+    const finalUpdate = { callInfo: updateData };
+
+    const updated = await student.findByIdAndUpdate(
+      id,
+      { $set: finalUpdate },
+      { new: true, runValidators: true }
+    ).lean();
+
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "Student not found" });
+    }
+
+    if (!updated.callInfo) updated.callInfo = {};
+
+    return res.status(200).json({
+      success: true,
+      message: "Student status updated successfully",
+      student: updated,
+    });
+  } catch (error) {
+    console.error("Error updating student status:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while updating student status",
+      error: error.message,
+    });
+  }
+}
+const studentAssignedSummaryStatus=async(req,res)=>{
+ try {
+    const userId = req.user._id; // from auth middleware
+
+    // Fetch only students assigned to this user
+    const Students = await student.find({ assignedTo: userId })
+      .sort({ assignedAt: -1 })
+      .lean();
+
+    const totalAssigned = Students.length;
+    const completed = Students.filter(s => s.callInfo && s.callInfo.callStatus).length;
+    const pending = totalAssigned - completed;
+
+    // Total call duration in seconds
+    const totalCallDuration = Students.reduce((sum, s) => {
+      return sum + (s.callInfo?.callDuration ? s.callInfo.callDuration * 60 : 0);
+    }, 0);
+
+    // Total interested count
+    const totalInterested = Students.filter(s => s.callInfo?.interested === true).length;
+
+    // Plan type counts
+    const planCounts = Students.reduce((acc, s) => {
+      const plan = s.callInfo?.planType;
+      if (plan) acc[plan] = (acc[plan] || 0) + 1;
+      return acc;
+    }, { starter: 0, gold: 0, master: 0 });
+
+    // Course-wise count
+    const courseCounts = Students.reduce((acc, s) => {
+      const course = s.course;
+      if (course) acc[course] = (acc[course] || 0) + 1;
+      return acc;
+    }, {});
+
+    res.json({
+      success: true,
+      students: Students,
+      summary: {
+        totalAssigned,
+        completed,
+        pending,
+        totalCallDuration,  // in seconds
+        totalInterested,
+        planCounts,
+        courseCounts
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+}
+module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController,studentAssignedSummaryStatus };

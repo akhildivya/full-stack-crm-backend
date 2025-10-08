@@ -1,4 +1,13 @@
 const mongoose = require('mongoose')
+const callInfoSchema = new mongoose.Schema({
+  callStatus: { type: String, enum: ['missed', 'accepted', 'rejected'], default: null },
+  callDuration: { type: Number, default: null }, // in minutes
+  interested: { type: Boolean, default: null },
+  planType: { type: String, enum: ['starter', 'gold', 'master'], default: null },
+}, {
+  timestamps: true, // separate timestamps for this subdocument
+});
+
 const studentSchema = new mongoose.Schema({
     name: { type: String, required: true, trim: true },
     email: {
@@ -24,7 +33,9 @@ const studentSchema = new mongoose.Schema({
     assignedAt: {
         type: Date,
         default: null
-    }
+    },
+    callInfo: callInfoSchema
+    
 }, { timestamps: true })
 
 const students = mongoose.model('students', studentSchema);
