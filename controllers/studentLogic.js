@@ -402,7 +402,7 @@ const getAssignedStudentsController = async (req, res) => {
     const students = await student.find({ assignedTo: userId })
       .select('name email phone course place assignedAt callInfo')  // only needed fields
       .sort({ assignedAt: -1 })
-       .lean();
+      .lean();
 
     return res.json({ success: true, students });
   } catch (err) {
@@ -458,7 +458,13 @@ const studentCallStatusController = async (req, res) => {
     if (updateData.callDuration === "") updateData.callDuration = null;
     if (updateData.planType === "") updateData.planType = null;
     if (updateData.callStatus === "") updateData.callStatus = null;
-
+ if (updateData.callStatus) {
+      // If there is a callStatus, we treat it as completed
+      updateData.completedAt = new Date();
+    } else {
+      // If callStatus is null, you might want to clear completedAt (optional)
+      updateData.completedAt = null;
+    }
     const finalUpdate = { callInfo: updateData };
 
     const updated = await student.findByIdAndUpdate(
@@ -487,8 +493,8 @@ const studentCallStatusController = async (req, res) => {
     });
   }
 }
-const studentAssignedSummaryStatus=async(req,res)=>{
- try {
+const studentAssignedSummaryStatus = async (req, res) => {
+  try {
     const userId = req.user._id; // from auth middleware
 
     // Fetch only students assigned to this user
@@ -507,6 +513,7 @@ const studentAssignedSummaryStatus=async(req,res)=>{
 
     // Total interested count
     const totalInterested = Students.filter(s => s.callInfo?.interested === true).length;
+    const missingInterest = Students.filter(s => s.callInfo?.interested === undefined || s.callInfo?.interested === null).length;
 
     // Plan type counts
     const planCounts = Students.reduce((acc, s) => {
@@ -531,6 +538,7 @@ const studentAssignedSummaryStatus=async(req,res)=>{
         pending,
         totalCallDuration,  // in seconds
         totalInterested,
+        missingInterest,
         planCounts,
         courseCounts
       },
@@ -540,4 +548,4 @@ const studentAssignedSummaryStatus=async(req,res)=>{
     res.status(500).json({ success: false, message: 'Server error' });
   }
 }
-module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController,studentAssignedSummaryStatus };
+module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus };
