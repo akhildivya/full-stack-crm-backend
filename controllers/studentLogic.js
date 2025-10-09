@@ -345,40 +345,67 @@ const viewAssignedStudentController = async (req, res) => {
 }
 const getUsersAssignmentStats = async (req, res) => {
   try {
-    // Aggregation on Student
     const stats = await student.aggregate([
-      // only students with an assigned user
+      // Match students that are assigned to a user
       { $match: { assignedTo: { $ne: null } } },
-      // group by assignedTo
+
+      // Group by user and date (keep actual timestamp)
       {
         $group: {
-          _id: "$assignedTo",
+          _id: {
+            assignedTo: "$assignedTo",
+            date: {
+              $dateToString: {
+                format: "%Y-%m-%dT%H:%M:%S",
+                date: "$assignedAt",
+                timezone: "Asia/Kolkata" // keep local timezone
+              }
+            }
+          },
           count: { $sum: 1 },
-          lastAssigned: { $max: "$assignedAt" }
+          lastAssignedAt: { $max: "$assignedAt" } // for time reference
         }
       },
-      // join with users collection to get username, email
+
+      // Group again by user to get per-day summary and overall stats
+      {
+        $group: {
+          _id: "$_id.assignedTo",
+          totalAssigned: { $sum: "$count" },
+          dailySummary: {
+            $push: {
+              date: "$_id.date",
+              count: "$count"
+            }
+          },
+          lastAssigned: { $max: "$lastAssignedAt" }
+        }
+      },
+
+      // Join with users collection
       {
         $lookup: {
-          from: "users",           // your users collection name
+          from: "users",
           localField: "_id",
           foreignField: "_id",
           as: "userInfo"
         }
       },
-      // unwind the userInfo array
       { $unwind: "$userInfo" },
-      // project desired fields
+
+      // Project required fields
       {
         $project: {
+          _id: 0,
           userId: "$_id",
           username: "$userInfo.username",
           email: "$userInfo.email",
-          count: 1,
-          lastAssigned: 1
+          totalAssigned: 1,
+          lastAssigned: 1,
+          dailySummary: 1
         }
       },
-      // optionally sort by count or lastAssigned
+
       { $sort: { lastAssigned: -1 } }
     ]);
 
