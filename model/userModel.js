@@ -14,16 +14,18 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    phone:{
-        type:Number,
-        required:true
+    phone: {
+        type: Number,
+        required: true
     },
     userType: {
         type: String,
-        required:true
+        required: true
     },
-     verified: { type: Boolean, default: false },
-     
+    verified: { type: Boolean, default: false },
+    isAssignmentComplete: { type: Boolean, default: false },
+    assignmentCompletedAt: { type: Date, default: null }
+
 }, { timestamps: true })
 const users = mongoose.model("users", userSchema)
 module.exports = users

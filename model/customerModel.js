@@ -55,6 +55,83 @@ studentSchema.virtual('callMarked').get(function() {
 // Make virtuals visible in JSON / object output
 studentSchema.set('toObject', { virtuals: true });
 studentSchema.set('toJSON', { virtuals: true });
+
+studentSchema.post('save', async function (doc, next) {
+  try {
+    if (!doc.assignedTo) {
+      return next();
+    }
+
+    const Students = mongoose.model('students');
+    const Users = mongoose.model('users');
+
+    const totalAssigned = await Students.countDocuments({ assignedTo: doc.assignedTo });
+    const completedCount = await Students.countDocuments({
+      assignedTo: doc.assignedTo,
+      'callInfo.completedAt': { $ne: null }
+    });
+
+    if (totalAssigned > 0 && totalAssigned === completedCount) {
+      await Users.findByIdAndUpdate(doc.assignedTo, {
+        isAssignmentComplete: true,
+        assignmentCompletedAt: new Date()
+      });
+      console.log(`User ${doc.assignedTo} has completed all tasks.`);
+    } else {
+      await Users.findByIdAndUpdate(doc.assignedTo, {
+        isAssignmentComplete: false,
+        assignmentCompletedAt: null
+      });
+    }
+
+    next();
+  } catch (err) {
+    console.error('Error checking assignment completion in post-save:', err);
+    next(err);
+  }
+});
+
+// Optionally, also support findOneAndUpdate, etc.
+studentSchema.post('findOneAndUpdate', async function (doc, next) {
+  // very similar logic — note `this.getQuery()` or `this.getUpdate()` to locate doc
+  try {
+    if (!doc) {
+      return next();
+    }
+    if (!doc.assignedTo) {
+      return next();
+    }
+
+    const Students = mongoose.model('students');
+    const Users = mongoose.model('users');
+
+    const totalAssigned = await Students.countDocuments({ assignedTo: doc.assignedTo });
+    const completedCount = await Students.countDocuments({
+      assignedTo: doc.assignedTo,
+      'callInfo.completedAt': { $ne: null }
+    });
+
+    if (totalAssigned > 0 && totalAssigned === completedCount) {
+      await Users.findByIdAndUpdate(doc.assignedTo, {
+        isAssignmentComplete: true,
+        assignmentCompletedAt: new Date()
+      });
+      console.log(`User ${doc.assignedTo} has completed all tasks (via findOneAndUpdate).`);
+    } else {
+      await Users.findByIdAndUpdate(doc.assignedTo, {
+        isAssignmentComplete: false,
+        assignmentCompletedAt: null
+      });
+    }
+
+    next();
+  } catch (err) {
+    console.error('Error in findOneAndUpdate post hook:', err);
+    next(err);
+  }
+});
+
+
 const students = mongoose.model('students', studentSchema);
 
 module.exports = students;

@@ -575,4 +575,51 @@ const studentAssignedSummaryStatus = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 }
-module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus };
+const getUserCompletionsController =async(req,res)=>{
+   try {
+    const Users = mongoose.model('users');
+const Students = mongoose.model('students');
+    // Fetch users who have completed assignments
+    const completedUsers = await Users.find(
+      { isAssignmentComplete: true, assignmentCompletedAt: { $ne: null } },
+      'username assignmentCompletedAt'
+    ).sort({ assignmentCompletedAt: -1 });
+const formattedUsers = await Promise.all(completedUsers.map(async (u) => {
+      // Find the earliest assigned student for assigned date
+      const firstAssignment = await Students.findOne({ assignedTo: u._id }).sort({ assignedAt: 1 });
+      const totalAssigned = await Students.countDocuments({ assignedTo: u._id });
+
+      return {
+        _id: u._id,
+        username: u.username,
+        assignedDate: firstAssignment?.assignedAt || null,
+        totalContacts: totalAssigned,
+        completedAt: u.assignmentCompletedAt
+      };
+    }));
+    res.json({
+      success: true,
+      data: formattedUsers,
+    });
+  } catch (err) {
+    console.error('Error fetching user completions:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+}
+const deleteUserCompletionTaskController=async(req,res)=>{
+    const { userId } = req.params;
+  try {
+    const Users = mongoose.model('users');
+    // Clear the completion flags for that user (so it doesn't show)
+    await Users.findByIdAndUpdate(userId, {
+      isAssignmentComplete: false,
+      assignmentCompletedAt: null,
+      // maybe also assignmentGivenAt = null if you want to fully reset
+    });
+    res.json({ success: true, message: 'Notification dismissed' });
+  } catch (err) {
+    console.error('Error dismissing completion notification:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+}
+module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus,getUserCompletionsController,deleteUserCompletionTaskController };

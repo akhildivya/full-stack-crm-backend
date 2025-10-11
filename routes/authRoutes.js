@@ -50,4 +50,6 @@ router.get('/admin/unverified',requireSignIn,isAdmin,user.unVerifiedController)
 router.get('/admin/user-overview',requireSignIn,isAdmin,user.overviewController)
 router.get('/admin/leads-overview',requireSignIn,isAdmin,student.leadsOverviewController)
 router.get('/admin/users-assignment-stats', requireSignIn,isAdmin,student.getUsersAssignmentStats);
+router.get('/admin/user-completions', requireSignIn,isAdmin,student.getUserCompletionsController)
+router.delete('/admin/user-completion/:userId',requireSignIn,isAdmin,student.deleteUserCompletionTaskController)
 module.exports=router
