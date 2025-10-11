@@ -38,7 +38,23 @@ const studentSchema = new mongoose.Schema({
     callInfo: callInfoSchema
     
 }, { timestamps: true })
+studentSchema.virtual('callMarked').get(function() {
+  // we consider “marked” if *any* field in callInfo is non-null (except default)
+  if (this.callInfo) {
+    if (this.callInfo.callStatus != null
+        || this.callInfo.callDuration != null
+        || this.callInfo.interested != null
+        || this.callInfo.planType != null
+        || this.callInfo.completedAt != null) {
+      return 'marked';
+    }
+  }
+  return 'not marked';
+});
 
+// Make virtuals visible in JSON / object output
+studentSchema.set('toObject', { virtuals: true });
+studentSchema.set('toJSON', { virtuals: true });
 const students = mongoose.model('students', studentSchema);
 
 module.exports = students;
