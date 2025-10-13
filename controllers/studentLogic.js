@@ -622,4 +622,28 @@ const deleteUserCompletionTaskController=async(req,res)=>{
     res.status(500).json({ success: false, message: 'Server error' });
   }
 }
-module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus,getUserCompletionsController,deleteUserCompletionTaskController };
+const getAssignedWorkReportController=async(req,res)=>{
+   try {
+    const { assignedTo } = req.query;
+    if (!assignedTo) {
+      return res.status(400).json({ message: 'assignedTo query param is required' });
+    }
+
+    const students = await student.find({ assignedTo })
+      .select('assignedTo assignedAt name email phone course place callInfo completedAt')
+      .populate({
+        path: 'assignedTo',
+        select: 'username email'  // you may want user info
+      })
+      .lean();
+
+    // Note: completedAt is inside callInfo, but your schema had completedAt inside callInfo,
+    // so adjust accordingly if that's the actual field path.
+
+    res.json(students);
+  } catch (err) {
+    console.error('Error fetching assigned students:', err);
+    res.status(500).json({ message: 'Error fetching students', error: err });
+  }
+}
+module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus,getUserCompletionsController,deleteUserCompletionTaskController,getAssignedWorkReportController };
