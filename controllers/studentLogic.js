@@ -478,20 +478,19 @@ const studentCallStatusController = async (req, res) => {
     const { id } = req.params;
     let updateData = { ...req.body };
 
-    if (updateData.interested === "yes") updateData.interested = true;
-    else if (updateData.interested === "no") updateData.interested = false;
-    else if (updateData.interested === "") updateData.interested = null;
+    // Convert Interested to Boolean
+    if (updateData.interested === "Yes") updateData.interested = true;
+    else if (updateData.interested === "No") updateData.interested = false;
+    else updateData.interested = null;
 
-    if (updateData.callDuration === "") updateData.callDuration = null;
-    if (updateData.planType === "") updateData.planType = null;
-    if (updateData.callStatus === "") updateData.callStatus = null;
- if (updateData.callStatus) {
-      // If there is a callStatus, we treat it as completed
-      updateData.completedAt = new Date();
-    } else {
-      // If callStatus is null, you might want to clear completedAt (optional)
-      updateData.completedAt = null;
-    }
+    // Handle empty strings
+    updateData.callDuration = updateData.callDuration || null;
+    updateData.planType = updateData.interested ? (updateData.planType || null) : null;
+    updateData.callStatus = updateData.callStatus || null;
+
+    // completedAt logic
+    updateData.completedAt = updateData.callStatus ? new Date() : null;
+
     const finalUpdate = { callInfo: updateData };
 
     const updated = await student.findByIdAndUpdate(
@@ -503,8 +502,6 @@ const studentCallStatusController = async (req, res) => {
     if (!updated) {
       return res.status(404).json({ success: false, message: "Student not found" });
     }
-
-    if (!updated.callInfo) updated.callInfo = {};
 
     return res.status(200).json({
       success: true,
