@@ -233,7 +233,8 @@ const getUsersController=async(req,res)=>{
 }
 const unVerifiedController=async(req,res)=>{
      try {
-    const users = await User.find({ verified: false });
+    const users = await User.find({ verified: false,
+      userType: "User" });
     res.json(users);
   } catch (error) {
     res.status(500).send('Error fetching unverified users.');

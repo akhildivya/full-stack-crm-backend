@@ -53,4 +53,5 @@ router.get('/admin/users-assignment-stats', requireSignIn,isAdmin,student.getUse
 router.get('/admin/user-completions', requireSignIn,isAdmin,student.getUserCompletionsController)
 router.delete('/admin/user-completion/:userId',requireSignIn,isAdmin,student.deleteUserCompletionTaskController)
 router.get('/admin/get-work-report',requireSignIn,isAdmin,student.getAssignedWorkReportController)
+router.get('/admin/users-summary-report',requireSignIn,isAdmin,student.getTotalSummaryReportController)
 module.exports=router

@@ -174,7 +174,8 @@ const uploadSheetDetails = async (req, res) => {
 
 const viewStudController = async (req, res) => {
   try {
-    const students = await student.find() // remove __v if you want
+    const students = await student.find().populate('assignedTo', 'username') // Populate only the 'username' field
+      .exec(); // remove __v if you want
     res.json(students);
   } catch (error) {
     console.error('Error fetching students:', error);
@@ -643,4 +644,56 @@ const getAssignedWorkReportController=async(req,res)=>{
     res.status(500).json({ message: 'Error fetching students', error: err });
   }
 }
-module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus,getUserCompletionsController,deleteUserCompletionTaskController,getAssignedWorkReportController };
+const getTotalSummaryReportController=async(req,res)=>{
+   try {
+    // aggregate students by assignedTo
+    const agg = await student.aggregate([
+      {
+        $group: {
+          _id: '$assignedTo',
+          totalContacts: { $sum: 1 },
+          completed: {
+            $sum: {
+              $cond: [ { $ne: [ '$callInfo.completedAt', null ] }, 1, 0 ]
+            }
+          },
+          totalDuration: {
+            $sum: {
+              $cond: [
+                { $and: [ { $ne: [ '$callInfo.callDuration', null ] }, { $isNumber: '$callInfo.callDuration' } ] },
+                '$callInfo.callDuration',
+                0
+              ]
+            }
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      { $unwind: '$user' },
+      {
+        $project: {
+          userId: '$_id',
+          name: '$user.username',
+          email: '$user.email',
+          phone: '$user.phone',
+          totalContacts: 1,
+          completed: 1,
+          totalDuration: 1
+        }
+      }
+    ]);
+
+    res.json(agg);
+  } catch (err) {
+    console.error('Error generating user summary report', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus,getUserCompletionsController,deleteUserCompletionTaskController,getAssignedWorkReportController,getTotalSummaryReportController };
