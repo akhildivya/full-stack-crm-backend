@@ -538,14 +538,18 @@ const studentAssignedSummaryStatus = async (req, res) => {
 
     // Total interested count
     const totalInterested = Students.filter(s => s.callInfo?.interested === true).length;
+    const totalNotInterested = Students.filter(s => s.callInfo?.interested === false).length;
     const missingInterest = Students.filter(s => s.callInfo?.interested === undefined || s.callInfo?.interested === null).length;
 
     // Plan type counts
     const planCounts = Students.reduce((acc, s) => {
-      const plan = s.callInfo?.planType;
-      if (plan) acc[plan] = (acc[plan] || 0) + 1;
+      const plan = s.callInfo?.planType?.toLowerCase();
+      if (plan && ['starter', 'gold', 'master'].includes(plan)) {
+        acc[plan] = (acc[plan] || 0) + 1;
+      }
       return acc;
-    }, { starter: 0, gold: 0, master: 0 });
+    },
+      { starter: 0, gold: 0, master: 0 });
 
     // Course-wise count
     const courseCounts = Students.reduce((acc, s) => {
@@ -563,6 +567,7 @@ const studentAssignedSummaryStatus = async (req, res) => {
         pending,
         totalCallDuration,  // in seconds
         totalInterested,
+        totalNotInterested,
         missingInterest,
         planCounts,
         courseCounts
@@ -573,16 +578,16 @@ const studentAssignedSummaryStatus = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 }
-const getUserCompletionsController =async(req,res)=>{
-   try {
+const getUserCompletionsController = async (req, res) => {
+  try {
     const Users = mongoose.model('users');
-const Students = mongoose.model('students');
+    const Students = mongoose.model('students');
     // Fetch users who have completed assignments
     const completedUsers = await Users.find(
       { isAssignmentComplete: true, assignmentCompletedAt: { $ne: null } },
       'username assignmentCompletedAt'
     ).sort({ assignmentCompletedAt: -1 });
-const formattedUsers = await Promise.all(completedUsers.map(async (u) => {
+    const formattedUsers = await Promise.all(completedUsers.map(async (u) => {
       // Find the earliest assigned student for assigned date
       const firstAssignment = await Students.findOne({ assignedTo: u._id }).sort({ assignedAt: 1 });
       const totalAssigned = await Students.countDocuments({ assignedTo: u._id });
@@ -604,8 +609,8 @@ const formattedUsers = await Promise.all(completedUsers.map(async (u) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 }
-const deleteUserCompletionTaskController=async(req,res)=>{
-    const { userId } = req.params;
+const deleteUserCompletionTaskController = async (req, res) => {
+  const { userId } = req.params;
   try {
     const Users = mongoose.model('users');
     // Clear the completion flags for that user (so it doesn't show)
@@ -620,32 +625,61 @@ const deleteUserCompletionTaskController=async(req,res)=>{
     res.status(500).json({ success: false, message: 'Server error' });
   }
 }
-const getAssignedWorkReportController=async(req,res)=>{
-   try {
+const getAssignedWorkReportController = async (req, res) => {
+try {
     const { assignedTo } = req.query;
     if (!assignedTo) {
       return res.status(400).json({ message: 'assignedTo query param is required' });
     }
 
     const students = await student.find({ assignedTo })
-      .select('assignedTo assignedAt name email phone course place callInfo completedAt')
+      .select('assignedTo assignedAt name email phone course place callInfo')
       .populate({
         path: 'assignedTo',
-        select: 'username email'  // you may want user info
+        select: 'username email'
       })
       .lean();
 
-    // Note: completedAt is inside callInfo, but your schema had completedAt inside callInfo,
-    // so adjust accordingly if that's the actual field path.
+    // Compute summary
+    let totalContacts = students.length;
+    let totalCallDurationSec = 0; // in seconds
+    let countYes = 0;
+    let countNo = 0;
+    let countInformLater = 0;
 
-    res.json(students);
+    students.forEach(s => {
+      const ci = s.callInfo || {};
+      // callDuration stored in minutes? hours? Depends. Suppose it's in minutes or fraction.
+      if (ci.callDuration != null && !isNaN(ci.callDuration)) {
+        // convert to seconds
+        totalCallDurationSec += Number(ci.callDuration) * 60;
+      }
+      if (ci.interested === true) {
+        countYes += 1;
+      } else if (ci.interested === false) {
+        countNo += 1;
+      } else {
+        countInformLater += 1;
+      }
+    });
+
+    res.json({
+      students,
+      summary: {
+        totalContacts,
+        totalCallDurationSec,   // total duration in seconds
+        countYes,
+        countNo,
+        countInformLater
+      }
+    });
   } catch (err) {
     console.error('Error fetching assigned students:', err);
     res.status(500).json({ message: 'Error fetching students', error: err });
   }
 }
-const getTotalSummaryReportController=async(req,res)=>{
-   try {
+const getTotalSummaryReportController = async (req, res) => {
+  try {
     // aggregate students by assignedTo
     const agg = await student.aggregate([
       {
@@ -654,13 +688,13 @@ const getTotalSummaryReportController=async(req,res)=>{
           totalContacts: { $sum: 1 },
           completed: {
             $sum: {
-              $cond: [ { $ne: [ '$callInfo.completedAt', null ] }, 1, 0 ]
+              $cond: [{ $ne: ['$callInfo.completedAt', null] }, 1, 0]
             }
           },
           totalDuration: {
             $sum: {
               $cond: [
-                { $and: [ { $ne: [ '$callInfo.callDuration', null ] }, { $isNumber: '$callInfo.callDuration' } ] },
+                { $and: [{ $ne: ['$callInfo.callDuration', null] }, { $isNumber: '$callInfo.callDuration' }] },
                 '$callInfo.callDuration',
                 0
               ]
@@ -696,4 +730,4 @@ const getTotalSummaryReportController=async(req,res)=>{
     res.status(500).json({ error: 'Server error' });
   }
 }
-module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus,getUserCompletionsController,deleteUserCompletionTaskController,getAssignedWorkReportController,getTotalSummaryReportController };
+module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus, getUserCompletionsController, deleteUserCompletionTaskController, getAssignedWorkReportController, getTotalSummaryReportController };
