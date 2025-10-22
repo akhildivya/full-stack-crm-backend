@@ -2,7 +2,7 @@
 const user=require('../controllers/userLogic')
 const student=require('../controllers/studentLogic')
 const { requireSignIn,isAdmin } = require('../middlewares/authMiddleware')
-
+const {listFollowup} =require('../controllers/followupController')
 const express=require('express')
 const router=new express.Router()
 
@@ -54,4 +54,7 @@ router.get('/admin/user-completions', requireSignIn,isAdmin,student.getUserCompl
 router.delete('/admin/user-completion/:userId',requireSignIn,isAdmin,student.deleteUserCompletionTaskController)
 router.get('/admin/get-work-report',requireSignIn,isAdmin,student.getAssignedWorkReportController)
 router.get('/admin/users-summary-report',requireSignIn,isAdmin,student.getTotalSummaryReportController)
+router.post('/admin/move-to-admission', requireSignIn,isAdmin,student.addAdmissionController)
+router.post('/admin/move-to-contact-later',requireSignIn,isAdmin,student.addContactLaterController)
+router.get('/admin/followup/:mode', requireSignIn, isAdmin, listFollowup);
 module.exports=router

@@ -3,7 +3,9 @@
 const mongoose = require('mongoose');
 const student = require('../model/customerModel');
 const Assignment = require('../model/assignmentSchema')
+const ContactLater=require('../model/contactLaterSchema')
 const ALLOWED = ['name', 'email', 'phone', 'course', 'place'];
+const Admission=require('../model/admissionSchema')
 
 const uploadSheetDetails = async (req, res) => {
   function isValidName(name) { return /^[A-Za-z\s'-]{2,50}$/.test(name); }
@@ -730,4 +732,50 @@ const getTotalSummaryReportController = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 }
-module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus, getUserCompletionsController, deleteUserCompletionTaskController, getAssignedWorkReportController, getTotalSummaryReportController };
+const addAdmissionController=async(req,res)=>{
+    const { ids } = req.body;  // array of student IDs
+  try {
+    const students = await student.find({ _id: { $in: ids } });
+    if (!students.length) return res.status(404).json({ message: "No students found" });
+
+    const admissions = students.map(s => ({
+      name: s.name,
+      email: s.email,
+      phone: s.phone,
+      course: s.course,
+      place: s.place,
+      originalStudentId: s._id
+    }));
+    await Admission.insertMany(admissions);
+    await student.deleteMany({ _id: { $in: ids } });
+
+    res.status(200).json({ message: "Moved to Admission" });
+  } catch(err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+}
+const addContactLaterController=async(req,res)=>{
+   const { ids } = req.body;
+  try {
+    const students = await student.find({ _id: { $in: ids } });
+    if (!students.length) return res.status(404).json({ message: "No students found" });
+
+    const contacts = students.map(s => ({
+      name: s.name,
+      email: s.email,
+      phone: s.phone,
+      course: s.course,
+      place: s.place,
+      originalStudentId: s._id
+    }));
+    await ContactLater.insertMany(contacts);
+    await student.deleteMany({ _id: { $in: ids } });
+
+    res.status(200).json({ message: "Moved to Contact Later" });
+  } catch(err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+}
+module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus, getUserCompletionsController, deleteUserCompletionTaskController, getAssignedWorkReportController, getTotalSummaryReportController,addAdmissionController,addContactLaterController };
