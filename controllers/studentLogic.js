@@ -3,9 +3,9 @@
 const mongoose = require('mongoose');
 const student = require('../model/customerModel');
 const Assignment = require('../model/assignmentSchema')
-const ContactLater=require('../model/contactLaterSchema')
+const ContactLater = require('../model/contactLaterSchema')
 const ALLOWED = ['name', 'email', 'phone', 'course', 'place'];
-const Admission=require('../model/admissionSchema')
+const Admission = require('../model/admissionSchema')
 
 const uploadSheetDetails = async (req, res) => {
   function isValidName(name) { return /^[A-Za-z\s'-]{2,50}$/.test(name); }
@@ -482,13 +482,15 @@ const studentCallStatusController = async (req, res) => {
     let updateData = { ...req.body };
 
     // Convert Interested to Boolean
-    if (updateData.interested === "Yes") updateData.interested = true;
-    else if (updateData.interested === "No") updateData.interested = false;
-    else updateData.interested = null;
+    if (['Yes', 'No', 'Inform Later'].includes(updateData.interested)) {
+      // keep string as is
+    } else {
+      updateData.interested = null;
+    }
 
     // Handle empty strings
     updateData.callDuration = updateData.callDuration || null;
-    updateData.planType = updateData.interested ? (updateData.planType || null) : null;
+    updateData.planType = (updateData.interested === 'Yes') ? (updateData.planType || null) : null;
     updateData.callStatus = updateData.callStatus || null;
 
     // completedAt logic
@@ -539,10 +541,12 @@ const studentAssignedSummaryStatus = async (req, res) => {
     }, 0);
 
     // Total interested count
-    const totalInterested = Students.filter(s => s.callInfo?.interested === true).length;
-    const totalNotInterested = Students.filter(s => s.callInfo?.interested === false).length;
-    const missingInterest = Students.filter(s => s.callInfo?.interested === undefined || s.callInfo?.interested === null).length;
-
+    const totalInterested = Students.filter(s => s.callInfo?.interested === 'Yes').length;
+    const totalNotInterested = Students.filter(s => s.callInfo?.interested === 'No').length;
+    const informLaterCount = Students.filter(s => s.callInfo?.interested === 'Inform Later').length;
+const missingInterest   = Students.filter(
+  s => s.callInfo?.interested == null || s.callInfo?.interested === ''
+).length;
     // Plan type counts
     const planCounts = Students.reduce((acc, s) => {
       const plan = s.callInfo?.planType?.toLowerCase();
@@ -570,7 +574,8 @@ const studentAssignedSummaryStatus = async (req, res) => {
         totalCallDuration,  // in seconds
         totalInterested,
         totalNotInterested,
-        missingInterest,
+        informLaterCount,
+        missingInterest ,
         planCounts,
         courseCounts
       },
@@ -628,7 +633,7 @@ const deleteUserCompletionTaskController = async (req, res) => {
   }
 }
 const getAssignedWorkReportController = async (req, res) => {
-try {
+  try {
     const { assignedTo } = req.query;
     if (!assignedTo) {
       return res.status(400).json({ message: 'assignedTo query param is required' });
@@ -656,11 +661,11 @@ try {
         // convert to seconds
         totalCallDurationSec += Number(ci.callDuration) * 60;
       }
-      if (ci.interested === true) {
+      if (ci.interested === 'Yes') {
         countYes += 1;
-      } else if (ci.interested === false) {
+      } else if (ci.interested ===  'No') {
         countNo += 1;
-      } else {
+      }  else if (ci.interested === 'Inform Later') {
         countInformLater += 1;
       }
     });
@@ -701,7 +706,9 @@ const getTotalSummaryReportController = async (req, res) => {
                 0
               ]
             }
-          }
+          },
+          assignedAt: { $first: '$assignedAt' },
+          completedAt: { $first: '$callInfo.completedAt' }
         }
       },
       {
@@ -721,7 +728,13 @@ const getTotalSummaryReportController = async (req, res) => {
           phone: '$user.phone',
           totalContacts: 1,
           completed: 1,
-          totalDuration: 1
+          totalDuration: 1,
+          assignedAt: {
+            $dateToString: { format: "%d-%b-%Y", date: "$assignedAt" }
+          },
+          completedAt: {
+            $dateToString: { format: "%d-%b-%Y", date: "$completedAt" }
+          }
         }
       }
     ]);
@@ -732,8 +745,8 @@ const getTotalSummaryReportController = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 }
-const addAdmissionController=async(req,res)=>{
-    const { ids } = req.body;  // array of student IDs
+const addAdmissionController = async (req, res) => {
+  const { ids } = req.body;  // array of student IDs
   try {
     const students = await student.find({ _id: { $in: ids } });
     if (!students.length) return res.status(404).json({ message: "No students found" });
@@ -750,13 +763,13 @@ const addAdmissionController=async(req,res)=>{
     await student.deleteMany({ _id: { $in: ids } });
 
     res.status(200).json({ message: "Moved to Admission" });
-  } catch(err) {
+  } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 }
-const addContactLaterController=async(req,res)=>{
-   const { ids } = req.body;
+const addContactLaterController = async (req, res) => {
+  const { ids } = req.body;
   try {
     const students = await student.find({ _id: { $in: ids } });
     if (!students.length) return res.status(404).json({ message: "No students found" });
@@ -773,9 +786,9 @@ const addContactLaterController=async(req,res)=>{
     await student.deleteMany({ _id: { $in: ids } });
 
     res.status(200).json({ message: "Moved to Contact Later" });
-  } catch(err) {
+  } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 }
-module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus, getUserCompletionsController, deleteUserCompletionTaskController, getAssignedWorkReportController, getTotalSummaryReportController,addAdmissionController,addContactLaterController };
+module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus, getUserCompletionsController, deleteUserCompletionTaskController, getAssignedWorkReportController, getTotalSummaryReportController, addAdmissionController, addContactLaterController };

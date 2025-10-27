@@ -2,7 +2,7 @@ const mongoose = require('mongoose')
 const callInfoSchema = new mongoose.Schema({
   callStatus: { type: String, enum: ['Missed', 'Accepted', 'Rejected'], default: null },
   callDuration: { type: Number, default: null }, // in minutes
-  interested: { type: Boolean, default: null },
+  interested: { type: String, enum: ['Yes','No','Inform Later'], default: null },
   planType: { type: String, enum: ['Starter', 'Gold', 'Master'], default: null },
   completedAt: { type: Date, default: null },  
 }, {
@@ -130,7 +130,6 @@ studentSchema.post('findOneAndUpdate', async function (doc, next) {
     next(err);
   }
 });
-
 
 
 const students = mongoose.model('students', studentSchema);

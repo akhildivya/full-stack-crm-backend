@@ -27,6 +27,7 @@ router.get('/assigned-contact-details',requireSignIn,student.getAssignedStudents
 router.get('/assigned-students/:date',requireSignIn,student.getAssignedStudentsByDate)
 router.delete('/assigned-students/:date', requireSignIn, student.deleteAssignedStudentsByDate);
 router.put('/students/:id/status',requireSignIn,student.studentCallStatusController)
+
 router.get('/assigned-summary',requireSignIn,student.studentAssignedSummaryStatus)
 
 //Protected Admin Route
