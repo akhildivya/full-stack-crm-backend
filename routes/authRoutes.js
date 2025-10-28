@@ -61,4 +61,5 @@ router.post('/admin/move-to-admission', requireSignIn,isAdmin,student.addAdmissi
 router.post('/admin/move-to-contact-later',requireSignIn,isAdmin,student.addContactLaterController)
 router.get('/admin/followup/:mode', requireSignIn, isAdmin, listFollowup);
 router.delete('/admin/followup/:mode/:id', requireSignIn, isAdmin, deleteFollowup);
+
 module.exports=router

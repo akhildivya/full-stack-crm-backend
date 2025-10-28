@@ -4,7 +4,8 @@ const callInfoSchema = new mongoose.Schema({
   callDuration: { type: Number, default: null }, // in minutes
   interested: { type: String, enum: ['Yes','No','Inform Later'], default: null },
   planType: { type: String, enum: ['Starter', 'Gold', 'Master'], default: null },
-  completedAt: { type: Date, default: null },  
+  completedAt: { type: Date, default: null }, 
+
 }, {
   timestamps: true, // separate timestamps for this subdocument
 });
