@@ -1,10 +1,11 @@
 const mongoose = require('mongoose')
 const callInfoSchema = new mongoose.Schema({
-  callStatus: { type: String, enum: ['Missed', 'Accepted', 'Rejected'], default: null },
+  callStatus: { type: String, enum: ['Missed', 'Accepted', 'Rejected', 'Switched Off'], default: null },
   callDuration: { type: Number, default: null }, // in minutes
   interested: { type: String, enum: ['Yes','No','Inform Later'], default: null },
   planType: { type: String, enum: ['Starter', 'Gold', 'Master'], default: null },
   completedAt: { type: Date, default: null }, 
+   verified: { type: Boolean, default: false } 
 
 }, {
   timestamps: true, // separate timestamps for this subdocument

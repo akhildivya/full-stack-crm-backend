@@ -279,5 +279,17 @@ const overviewController=async(req,res)=>{
     return res.status(500).json({ error: "Server error" });
   }
 }
-
-module.exports = { userRegister, userLogin, testController, forgotPasswordController, resetPasswordController, verfifyController, userDetails, userStatus, userProfile, editProfile, deleteProfile,adminProfile,editAdminProfile,deleteAdminProfile, adminStatus,getUsersController,unVerifiedController,overviewController }
+const adminDeleteUserController=async(req,res)=>{
+    try {
+    const { id } = req.params;
+    const deleted = await User.findByIdAndDelete(id);
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    return res.status(200).json({ success: true, message: "User deleted successfully", user: deleted });
+  } catch (err) {
+    console.error("Error deleting user:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+}
+module.exports = { userRegister, userLogin, testController, forgotPasswordController, resetPasswordController, verfifyController, userDetails, userStatus, userProfile, editProfile, deleteProfile,adminProfile,editAdminProfile,deleteAdminProfile, adminStatus,getUsersController,unVerifiedController,overviewController,adminDeleteUserController }

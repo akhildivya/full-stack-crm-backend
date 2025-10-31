@@ -6,6 +6,7 @@ const Assignment = require('../model/assignmentSchema')
 const ContactLater = require('../model/contactLaterSchema')
 const ALLOWED = ['name', 'email', 'phone', 'course', 'place'];
 const Admission = require('../model/admissionSchema')
+const CallSession=require('../model/callsessionSchema')
 
 const uploadSheetDetails = async (req, res) => {
   function isValidName(name) { return /^[A-Za-z\s'-]{2,50}$/.test(name); }
@@ -477,23 +478,44 @@ const deleteAssignedStudentsByDate = async (req, res) => {
   }
 };
 const studentCallStatusController = async (req, res) => {
-  try {
+   try {
     const { id } = req.params;
     let updateData = { ...req.body };
 
-    // Convert Interested to Boolean
-    if (['Yes', 'No', 'Inform Later'].includes(updateData.interested)) {
-      // keep string as is
-    } else {
-      updateData.interested = null;
+      const stu = await student.findById(id);
+    if (!stu) {
+      return res.status(404).json({ success: false, message: 'Student not found' });
     }
 
-    // Handle empty strings
+    // Disable edits if callInfo has already been verified
+    if (stu.callInfo && stu.callInfo.verified === true) {
+      return res.status(403).json({
+        success: false,
+        message: 'Editing disabled: call info has been verified.'
+      });
+    }
+
+    // 🟡 Handle Switched Off case (reset other fields)
+    if (updateData.callStatus === 'Switched Off') {
+      updateData.callDuration = null;
+      updateData.interested = null;
+      updateData.planType = null;
+    } else {
+      // Convert interested properly
+      if (!['Yes', 'No', 'Inform Later'].includes(updateData.interested)) {
+        updateData.interested = null;
+      }
+
+      // PlanType only if interested === 'Yes'
+      updateData.planType =
+        updateData.interested === 'Yes' ? updateData.planType || null : null;
+    }
+
+    // Handle empty or undefined values
     updateData.callDuration = updateData.callDuration || null;
-    updateData.planType = (updateData.interested === 'Yes') ? (updateData.planType || null) : null;
     updateData.callStatus = updateData.callStatus || null;
 
-    // completedAt logic
+    // Mark completedAt when callStatus is present
     updateData.completedAt = updateData.callStatus ? new Date() : null;
 
     const finalUpdate = { callInfo: updateData };
@@ -505,19 +527,19 @@ const studentCallStatusController = async (req, res) => {
     ).lean();
 
     if (!updated) {
-      return res.status(404).json({ success: false, message: "Student not found" });
+      return res.status(404).json({ success: false, message: 'Student not found' });
     }
 
     return res.status(200).json({
       success: true,
-      message: "Student status updated successfully",
+      message: 'Student status updated successfully',
       student: updated,
     });
   } catch (error) {
-    console.error("Error updating student status:", error);
+    console.error('Error updating student status:', error);
     return res.status(500).json({
       success: false,
-      message: "Server error while updating student status",
+      message: 'Server error while updating student status',
       error: error.message,
     });
   }
@@ -653,6 +675,7 @@ const getAssignedWorkReportController = async (req, res) => {
     let countYes = 0;
     let countNo = 0;
     let countInformLater = 0;
+ let switchedOffCount = 0;
 
     students.forEach(s => {
       const ci = s.callInfo || {};
@@ -668,6 +691,9 @@ const getAssignedWorkReportController = async (req, res) => {
       }  else if (ci.interested === 'Inform Later') {
         countInformLater += 1;
       }
+      if ((ci.callStatus || '') === 'Switched Off') {
+        switchedOffCount += 1;
+      }
     });
 
     res.json({
@@ -677,7 +703,8 @@ const getAssignedWorkReportController = async (req, res) => {
         totalCallDurationSec,   // total duration in seconds
         countYes,
         countNo,
-        countInformLater
+        countInformLater,
+        switchedOffCount
       }
     });
   } catch (err) {
@@ -791,4 +818,118 @@ const addContactLaterController = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 }
-module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus, getUserCompletionsController, deleteUserCompletionTaskController, getAssignedWorkReportController, getTotalSummaryReportController, addAdmissionController, addContactLaterController };
+const callStartController=async(req,res)=>{
+  try {
+    const { studentId } = req.body;
+    if (!studentId || !mongoose.Types.ObjectId.isValid(studentId)) {
+      return res.status(400).json({ error: 'studentId required' });
+    }
+
+    // create call session
+    const session = new CallSession({
+      student: studentId,
+      user: req.user._id
+    });
+
+    await session.save();
+
+    // respond with session id and startedAt
+    return res.json({ sessionId: session._id, startedAt: session.startedAt });
+  } catch (err) {
+    console.error('Call start error', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+}
+const callStopController=async(req,res)=>{
+   try {
+    const { sessionId, callStatus, interested, planType } = req.body;
+    if (!sessionId || !mongoose.Types.ObjectId.isValid(sessionId)) {
+      return res.status(400).json({ error: 'sessionId required' });
+    }
+
+    const session = await CallSession.findById(sessionId);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+    if (session.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    if (session.stoppedAt) {
+      // already stopped
+      return res.json({ alreadyStopped: true });
+    }
+
+    const stoppedAt = new Date();
+    const durationSeconds = Math.max(0, Math.round((stoppedAt - session.startedAt) / 1000));
+
+    session.stoppedAt = stoppedAt;
+    session.durationSeconds = durationSeconds;
+    session.status = 'Stopped';
+    await session.save();
+
+    // update student's callInfo subdocument with aggregated info
+    const student = await Students.findById(session.student);
+    if (student) {
+      student.callInfo = student.callInfo || {};
+
+      // store duration in minutes as number (matching your schema comment)
+      student.callInfo.callDuration = Math.round((durationSeconds / 60) * 100) / 100; // minutes, 2-decimal
+      if (callStatus) student.callInfo.callStatus = callStatus;
+      if (interested) student.callInfo.interested = interested;
+      if (planType) student.callInfo.planType = planType;
+      student.callInfo.completedAt = stoppedAt;
+
+      await student.save();
+    }
+
+    return res.json({
+      sessionId: session._id,
+      durationSeconds,
+      durationMinutes: Math.round((durationSeconds / 60) * 100) / 100,
+      stoppedAt,
+      student: student ? student.toObject() : null
+    });
+  } catch (err) {
+    console.error('Call stop error', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+}
+const verifyCallInfoController=async(req,res)=>{
+   try {
+    const { id } = req.params;
+    const stu = await student.findById(id);
+    if (!stu) {
+      return res.status(404).json({ success:false, message: 'Student not found' });
+    }
+
+    // Mark as verified
+    stu.callInfo.verified = true;
+    await stu.save();
+
+    return res.status(200).json({ success:true, message:'Call info verified.', student: stu });
+  } catch(err) {
+    console.error('Error verifying callInfo:', err);
+    return res.status(500).json({ success:false, message:'Server error' });
+  }
+}
+const bulkverifyCallInfoController=async(req,res)=>{
+  try {
+    const { ids } = req.body;  // expect array of _id strings
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success:false, message:'No student IDs provided' });
+    }
+
+    const result = await student.updateMany(
+      { _id: { $in: ids } },
+      { $set: { 'callInfo.verified': true } }
+    );
+
+    return res.status(200).json({
+      success:true,
+      message:`Marked ${result.modifiedCount} students call status as verified.`,
+      modifiedCount: result.modifiedCount
+    });
+  } catch(err) {
+    console.error('Error bulk verifying callInfo:', err);
+    return res.status(500).json({ success:false, message:'Server error' });
+  }
+}
+module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus, getUserCompletionsController, deleteUserCompletionTaskController, getAssignedWorkReportController, getTotalSummaryReportController, addAdmissionController, addContactLaterController ,callStartController,callStopController,verifyCallInfoController,bulkverifyCallInfoController};

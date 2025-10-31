@@ -30,6 +30,9 @@ router.put('/students/:id/status',requireSignIn,student.studentCallStatusControl
 
 router.get('/assigned-summary',requireSignIn,student.studentAssignedSummaryStatus)
 
+router.post('/start',requireSignIn,student.callStartController)
+router.post('/stop',requireSignIn, student.callStopController)
+
 //Protected Admin Route
 router.get('/admin-auth',requireSignIn,isAdmin,(req,res)=>{
     res.status(200).send({ok:true})
@@ -39,6 +42,7 @@ router.get('/admin-status',requireSignIn,isAdmin,user.adminStatus)
 router.get('/admin-profile',requireSignIn,isAdmin,user.adminProfile)
 router.put('/admin-profile',requireSignIn,isAdmin,user.editAdminProfile)
 router.delete('/admin-delete/:id',requireSignIn,isAdmin,user.deleteAdminProfile)
+router.delete('/admin-delete-user/:id',requireSignIn,isAdmin,user.adminDeleteUserController)
 
 router.post('/admin/upload-sheet',requireSignIn,isAdmin,student.uploadSheetDetails)
 router.get('/admin/view-students',requireSignIn,isAdmin,student.viewStudController)
@@ -59,6 +63,8 @@ router.get('/admin/get-work-report',requireSignIn,isAdmin,student.getAssignedWor
 router.get('/admin/users-summary-report',requireSignIn,isAdmin,student.getTotalSummaryReportController)
 router.post('/admin/move-to-admission', requireSignIn,isAdmin,student.addAdmissionController)
 router.post('/admin/move-to-contact-later',requireSignIn,isAdmin,student.addContactLaterController)
+router.put('/admin/students-call/:id/verify',requireSignIn,isAdmin,student.verifyCallInfoController)
+router.put('/admin/students-call/bulk-verify',requireSignIn,isAdmin,student.bulkverifyCallInfoController)
 router.get('/admin/followup/:mode', requireSignIn, isAdmin, listFollowup);
 router.delete('/admin/followup/:mode/:id', requireSignIn, isAdmin, deleteFollowup);
 
