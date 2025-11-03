@@ -6,7 +6,7 @@ const Assignment = require('../model/assignmentSchema')
 const ContactLater = require('../model/contactLaterSchema')
 const ALLOWED = ['name', 'email', 'phone', 'course', 'place'];
 const Admission = require('../model/admissionSchema')
-const CallSession=require('../model/callsessionSchema')
+const CallSession = require('../model/callsessionSchema')
 
 const uploadSheetDetails = async (req, res) => {
   function isValidName(name) { return /^[A-Za-z\s'-]{2,50}$/.test(name); }
@@ -478,11 +478,11 @@ const deleteAssignedStudentsByDate = async (req, res) => {
   }
 };
 const studentCallStatusController = async (req, res) => {
-   try {
+  try {
     const { id } = req.params;
     let updateData = { ...req.body };
 
-      const stu = await student.findById(id);
+    const stu = await student.findById(id);
     if (!stu) {
       return res.status(404).json({ success: false, message: 'Student not found' });
     }
@@ -566,9 +566,9 @@ const studentAssignedSummaryStatus = async (req, res) => {
     const totalInterested = Students.filter(s => s.callInfo?.interested === 'Yes').length;
     const totalNotInterested = Students.filter(s => s.callInfo?.interested === 'No').length;
     const informLaterCount = Students.filter(s => s.callInfo?.interested === 'Inform Later').length;
-const missingInterest   = Students.filter(
-  s => s.callInfo?.interested == null || s.callInfo?.interested === ''
-).length;
+    const missingInterest = Students.filter(
+      s => s.callInfo?.interested == null || s.callInfo?.interested === ''
+    ).length;
     // Plan type counts
     const planCounts = Students.reduce((acc, s) => {
       const plan = s.callInfo?.planType?.toLowerCase();
@@ -597,7 +597,7 @@ const missingInterest   = Students.filter(
         totalInterested,
         totalNotInterested,
         informLaterCount,
-        missingInterest ,
+        missingInterest,
         planCounts,
         courseCounts
       },
@@ -669,13 +669,61 @@ const getAssignedWorkReportController = async (req, res) => {
       })
       .lean();
 
+    const callsessions = await CallSession.aggregate([
+      { $match: { student: { $in: students.map(s => s._id) } } },
+      { $sort: { stoppedAt: -1 } },
+      {
+        $group: {
+          _id: '$student',
+          lastDurationSeconds: { $first: '$durationSeconds' }
+        }
+      }
+    ]);
+
+    const sessionMap = callsessions.reduce((acc, cs) => {
+      acc[cs._id.toString()] = cs.lastDurationSeconds;
+      return acc;
+    }, {});
+
+    students.forEach(s => {
+      s.callSessionDurationSeconds = sessionMap[s._id.toString()] || 0;  // NEW: attach duration seconds
+    });
+
+    const totalCallSession = await CallSession.aggregate([
+      { $match: { student: { $in: students.map(s => s._id) } } },
+      { $group: { _id: null, totalTimerDurationSeconds: { $sum: '$durationSeconds' } } }
+    ]);
+
+    const totalTimerDurationSeconds = totalCallSession[0]?.totalTimerDurationSeconds || 0; // NEW
+   const callTypeSummary = {};
+    const statusList = ['Missed', 'Accepted', 'Rejected', 'Switched Off'];
+
+    statusList.forEach(st => {
+      callTypeSummary[st] = { count: 0, timerDuration: 0, callDuration: 0 };
+    });
+
+    students.forEach(s => {
+      const ci = s.callInfo || {};
+      const status = (ci.callStatus || '').trim();
+
+      if (statusList.includes(status)) {
+        callTypeSummary[status].count += 1;
+        if (!isNaN(s.callSessionDurationSeconds)) {
+          callTypeSummary[status].timerDuration += Number(s.callSessionDurationSeconds);
+        }
+        if (ci.callDuration && !isNaN(ci.callDuration)) {
+          callTypeSummary[status].callDuration += Number(ci.callDuration) * 60; // to seconds
+        }
+      }
+    });
+
     // Compute summary
     let totalContacts = students.length;
     let totalCallDurationSec = 0; // in seconds
     let countYes = 0;
     let countNo = 0;
     let countInformLater = 0;
- let switchedOffCount = 0;
+    let switchedOffCount = 0;
 
     students.forEach(s => {
       const ci = s.callInfo || {};
@@ -686,9 +734,9 @@ const getAssignedWorkReportController = async (req, res) => {
       }
       if (ci.interested === 'Yes') {
         countYes += 1;
-      } else if (ci.interested ===  'No') {
+      } else if (ci.interested === 'No') {
         countNo += 1;
-      }  else if (ci.interested === 'Inform Later') {
+      } else if (ci.interested === 'Inform Later') {
         countInformLater += 1;
       }
       if ((ci.callStatus || '') === 'Switched Off') {
@@ -700,17 +748,20 @@ const getAssignedWorkReportController = async (req, res) => {
       students,
       summary: {
         totalContacts,
-        totalCallDurationSec,   // total duration in seconds
+        totalCallDurationSec,
+        totalTimerDurationSeconds,   // total duration in seconds
         countYes,
         countNo,
         countInformLater,
-        switchedOffCount
+        switchedOffCount,
+        callTypeSummary
       }
     });
   } catch (err) {
     console.error('Error fetching assigned students:', err);
     res.status(500).json({ message: 'Error fetching students', error: err });
   }
+  
 }
 const getTotalSummaryReportController = async (req, res) => {
   try {
@@ -818,7 +869,7 @@ const addContactLaterController = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 }
-const callStartController=async(req,res)=>{
+const callStartController = async (req, res) => {
   try {
     const { studentId } = req.body;
     if (!studentId || !mongoose.Types.ObjectId.isValid(studentId)) {
@@ -840,8 +891,8 @@ const callStartController=async(req,res)=>{
     return res.status(500).json({ error: 'Server error' });
   }
 }
-const callStopController=async(req,res)=>{
-   try {
+const callStopController = async (req, res) => {
+  try {
     const { sessionId, callStatus, interested, planType } = req.body;
     if (!sessionId || !mongoose.Types.ObjectId.isValid(sessionId)) {
       return res.status(400).json({ error: 'sessionId required' });
@@ -865,19 +916,22 @@ const callStopController=async(req,res)=>{
     session.status = 'Stopped';
     await session.save();
 
-    // update student's callInfo subdocument with aggregated info
-    const student = await Students.findById(session.student);
-    if (student) {
-      student.callInfo = student.callInfo || {};
+    const stu = await student.findById(session.student); // CHANGED to correct model import
+    if (stu) {
+      stu.callInfo = stu.callInfo || {};
 
-      // store duration in minutes as number (matching your schema comment)
-      student.callInfo.callDuration = Math.round((durationSeconds / 60) * 100) / 100; // minutes, 2-decimal
-      if (callStatus) student.callInfo.callStatus = callStatus;
-      if (interested) student.callInfo.interested = interested;
-      if (planType) student.callInfo.planType = planType;
-      student.callInfo.completedAt = stoppedAt;
+      // NEW: store timer duration in seconds separately
+      stu.callInfo.timerDurationSeconds = durationSeconds;
 
-      await student.save();
+      // KEEP user-entered duration field separate
+      // stu.callInfo.callDuration remains whatever user input
+
+      if (callStatus) stu.callInfo.callStatus = callStatus;
+      if (interested) stu.callInfo.interested = interested;
+      if (planType) stu.callInfo.planType = planType;
+      stu.callInfo.completedAt = stoppedAt;
+
+      await stu.save();
     }
 
     return res.json({
@@ -885,36 +939,36 @@ const callStopController=async(req,res)=>{
       durationSeconds,
       durationMinutes: Math.round((durationSeconds / 60) * 100) / 100,
       stoppedAt,
-      student: student ? student.toObject() : null
+      student: stu ? stu.toObject() : null
     });
   } catch (err) {
     console.error('Call stop error', err);
     return res.status(500).json({ error: 'Server error' });
   }
 }
-const verifyCallInfoController=async(req,res)=>{
-   try {
+const verifyCallInfoController = async (req, res) => {
+  try {
     const { id } = req.params;
     const stu = await student.findById(id);
     if (!stu) {
-      return res.status(404).json({ success:false, message: 'Student not found' });
+      return res.status(404).json({ success: false, message: 'Student not found' });
     }
 
     // Mark as verified
     stu.callInfo.verified = true;
     await stu.save();
 
-    return res.status(200).json({ success:true, message:'Call info verified.', student: stu });
-  } catch(err) {
+    return res.status(200).json({ success: true, message: 'Call info verified.', student: stu });
+  } catch (err) {
     console.error('Error verifying callInfo:', err);
-    return res.status(500).json({ success:false, message:'Server error' });
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 }
-const bulkverifyCallInfoController=async(req,res)=>{
+const bulkverifyCallInfoController = async (req, res) => {
   try {
     const { ids } = req.body;  // expect array of _id strings
     if (!Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ success:false, message:'No student IDs provided' });
+      return res.status(400).json({ success: false, message: 'No student IDs provided' });
     }
 
     const result = await student.updateMany(
@@ -923,13 +977,13 @@ const bulkverifyCallInfoController=async(req,res)=>{
     );
 
     return res.status(200).json({
-      success:true,
-      message:`Marked ${result.modifiedCount} students call status as verified.`,
+      success: true,
+      message: `Marked ${result.modifiedCount} students call status as verified.`,
       modifiedCount: result.modifiedCount
     });
-  } catch(err) {
+  } catch (err) {
     console.error('Error bulk verifying callInfo:', err);
-    return res.status(500).json({ success:false, message:'Server error' });
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 }
-module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus, getUserCompletionsController, deleteUserCompletionTaskController, getAssignedWorkReportController, getTotalSummaryReportController, addAdmissionController, addContactLaterController ,callStartController,callStopController,verifyCallInfoController,bulkverifyCallInfoController};
+module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus, getUserCompletionsController, deleteUserCompletionTaskController, getAssignedWorkReportController, getTotalSummaryReportController, addAdmissionController, addContactLaterController, callStartController, callStopController, verifyCallInfoController, bulkverifyCallInfoController };
