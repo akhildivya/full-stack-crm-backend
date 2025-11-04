@@ -552,6 +552,7 @@ const studentAssignedSummaryStatus = async (req, res) => {
     const Students = await student.find({ assignedTo: userId })
       .sort({ assignedAt: -1 })
       .lean();
+    
 
     const totalAssigned = Students.length;
     const completed = Students.filter(s => s.callInfo && s.callInfo.callStatus).length;
@@ -695,7 +696,7 @@ const getAssignedWorkReportController = async (req, res) => {
     ]);
 
     const totalTimerDurationSeconds = totalCallSession[0]?.totalTimerDurationSeconds || 0; // NEW
-   const callTypeSummary = {};
+    const callTypeSummary = {};
     const statusList = ['Missed', 'Accepted', 'Rejected', 'Switched Off'];
 
     statusList.forEach(st => {
@@ -761,7 +762,7 @@ const getAssignedWorkReportController = async (req, res) => {
     console.error('Error fetching assigned students:', err);
     res.status(500).json({ message: 'Error fetching students', error: err });
   }
-  
+
 }
 const getTotalSummaryReportController = async (req, res) => {
   try {
