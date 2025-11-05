@@ -1,4 +1,5 @@
 const mongoose = require('mongoose')
+const { updateWorkReport } =require('../utils/updateWorkReport')
 
 const callInfoSchema = new mongoose.Schema({
   callStatus: { type: String, enum: ['Missed', 'Accepted', 'Rejected', 'Switched Off'], default: null },
@@ -119,7 +120,7 @@ studentSchema.post('findOneAndUpdate', async function (doc, next) {
         isAssignmentComplete: true,
         assignmentCompletedAt: new Date()
       });
-      console.log(`User ${doc.assignedTo} has completed all tasks (via findOneAndUpdate).`);
+      /*console.log(`User ${doc.assignedTo} has completed all tasks (via findOneAndUpdate).`);*/
     } else {
       await Users.findByIdAndUpdate(doc.assignedTo, {
         isAssignmentComplete: false,
@@ -137,7 +138,25 @@ studentSchema.post('findOneAndUpdate', async function (doc, next) {
 
 
 
+studentSchema.post('save', async function (doc, next) {
+  try {
+    await updateWorkReport(doc);
+    next();
+  } catch (err) {
+    console.error('Error updating report:', err);
+    next(err);
+  }
+});
 
+studentSchema.post('findOneAndUpdate', async function (doc, next) {
+  try {
+    if (doc) await updateWorkReport(doc);
+    next();
+  } catch (err) {
+    console.error('Error updating report (update):', err);
+    next(err);
+  }
+});
 
 
 const students = mongoose.model('students', studentSchema);

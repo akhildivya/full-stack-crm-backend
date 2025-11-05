@@ -7,6 +7,7 @@ const ContactLater = require('../model/contactLaterSchema')
 const ALLOWED = ['name', 'email', 'phone', 'course', 'place'];
 const Admission = require('../model/admissionSchema')
 const CallSession = require('../model/callsessionSchema')
+const WorkReport = require('../model/workReportSchema');
 
 
 const uploadSheetDetails = async (req, res) => {
@@ -999,5 +1000,20 @@ const bulkverifyCallInfoController = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 }
-
-module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus, getUserCompletionsController, deleteUserCompletionTaskController, getAssignedWorkReportController, getTotalSummaryReportController, addAdmissionController, addContactLaterController, callStartController, callStopController, verifyCallInfoController, bulkverifyCallInfoController };
+const weeklyReportController=async(req,res)=>{
+   try {
+    const reports = await WorkReport.find().sort({ week: -1 });
+    res.json(reports);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+const monthlyReportController=async(req,res)=>{
+   try {
+    const reports = await WorkReport.find().sort({ month: -1 });
+    res.json(reports);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus, getUserCompletionsController, deleteUserCompletionTaskController, getAssignedWorkReportController, getTotalSummaryReportController, addAdmissionController, addContactLaterController, callStartController, callStopController, verifyCallInfoController, bulkverifyCallInfoController,weeklyReportController,monthlyReportController };

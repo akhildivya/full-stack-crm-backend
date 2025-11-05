@@ -1,0 +1,19 @@
+const mongoose = require('mongoose');
+
+const workReportSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'users', required: true },
+  username: { type: String, required: true },
+  week: { type: String, required: true }, // e.g. "2025-W45"
+  month: { type: String, required: true }, // e.g. "2025-11"
+  
+  assignedCount: { type: Number, default: 0 },
+  completedCount: { type: Number, default: 0 },
+  totalCallDurationSeconds: { type: Number, default: 0 },
+
+  assignedDates: [{ type: Date }],
+  completedDates: [{ type: Date }],
+
+  createdAt: { type: Date, default: Date.now }
+});
+
+module.exports = mongoose.model('WorkReport', workReportSchema);
