@@ -8,6 +8,7 @@ const ALLOWED = ['name', 'email', 'phone', 'course', 'place'];
 const Admission = require('../model/admissionSchema')
 const CallSession = require('../model/callsessionSchema')
 
+
 const uploadSheetDetails = async (req, res) => {
   function isValidName(name) { return /^[A-Za-z\s'-]{2,50}$/.test(name); }
   function isEmail(v) {
@@ -552,7 +553,7 @@ const studentAssignedSummaryStatus = async (req, res) => {
     const Students = await student.find({ assignedTo: userId })
       .sort({ assignedAt: -1 })
       .lean();
-    
+
 
     const totalAssigned = Students.length;
     const completed = Students.filter(s => s.callInfo && s.callInfo.callStatus).length;
@@ -876,7 +877,18 @@ const callStartController = async (req, res) => {
     if (!studentId || !mongoose.Types.ObjectId.isValid(studentId)) {
       return res.status(400).json({ error: 'studentId required' });
     }
-
+    const existing = await CallSession.findOne({
+      student: studentId,
+      user: req.user._id,
+      stoppedAt: null
+    });
+    if (existing) {
+      return res.json({
+        sessionId: existing._id,
+        startedAt: existing.startedAt,
+        alreadyActive: true
+      });
+    }
     // create call session
     const session = new CallSession({
       student: studentId,
@@ -987,4 +999,5 @@ const bulkverifyCallInfoController = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 }
+
 module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus, getUserCompletionsController, deleteUserCompletionTaskController, getAssignedWorkReportController, getTotalSummaryReportController, addAdmissionController, addContactLaterController, callStartController, callStopController, verifyCallInfoController, bulkverifyCallInfoController };

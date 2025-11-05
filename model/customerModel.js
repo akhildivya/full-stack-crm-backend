@@ -1,4 +1,5 @@
 const mongoose = require('mongoose')
+
 const callInfoSchema = new mongoose.Schema({
   callStatus: { type: String, enum: ['Missed', 'Accepted', 'Rejected', 'Switched Off'], default: null },
   callDuration: { type: Number, default: null }, // in minutes
@@ -132,6 +133,11 @@ studentSchema.post('findOneAndUpdate', async function (doc, next) {
     next(err);
   }
 });
+
+
+
+
+
 
 
 const students = mongoose.model('students', studentSchema);
