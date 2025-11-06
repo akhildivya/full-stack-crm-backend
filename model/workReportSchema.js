@@ -5,18 +5,10 @@ const workReportSchema = new mongoose.Schema({
   username: { type: String, required: true },
   week: { type: String, required: true }, // e.g. "2025-W45"
   month: { type: String, required: true }, // e.g. "2025-11"
-
-  assignedCount: { type:  Number, default: 0 },  
+  
+  assignedCount: { type: Number, default: 0 },
   completedCount: { type: Number, default: 0 },
   totalCallDurationSeconds: { type: Number, default: 0 },
-
-  totalPlans: { type: Number, default: 0 },
-  planCounts: {
-    Starter: { type: Number, default: 0 },
-    Gold: { type: Number, default: 0 },
-    Master: { type: Number, default: 0 },
-  },
-
 
   assignedDates: [{ type: Date }],
   completedDates: [{ type: Date }],

@@ -1049,7 +1049,7 @@ const bulkverifyCallInfoController = async (req, res) => {
   }
 }
 const weeklyReportController = async (req, res) => {
-  try {
+    try {
     const reports = await WorkReport.find().sort({ week: -1 });
     res.json(reports);
   } catch (err) {
@@ -1057,7 +1057,7 @@ const weeklyReportController = async (req, res) => {
   }
 }
 const monthlyReportController = async (req, res) => {
-  try {
+ try {
     const reports = await WorkReport.find().sort({ month: -1 });
     res.json(reports);
   } catch (err) {
