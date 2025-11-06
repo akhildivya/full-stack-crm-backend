@@ -768,28 +768,66 @@ const getAssignedWorkReportController = async (req, res) => {
 }
 const getTotalSummaryReportController = async (req, res) => {
   try {
-    // aggregate students by assignedTo
     const agg = await student.aggregate([
       {
         $group: {
           _id: '$assignedTo',
           totalContacts: { $sum: 1 },
-          completed: {
+          completedCalls: {
             $sum: {
-              $cond: [{ $ne: ['$callInfo.completedAt', null] }, 1, 0]
+              $cond: [
+                {
+                  $and: [
+                    { $ne: ['$callInfo.completedAt', null] },
+                    { $eq: ['$callInfo.verified', true] }
+                  ]
+                },
+                1,
+                0
+              ]
             }
           },
           totalDuration: {
             $sum: {
               $cond: [
-                { $and: [{ $ne: ['$callInfo.callDuration', null] }, { $isNumber: '$callInfo.callDuration' }] },
+                {
+                  $and: [
+                    { $ne: ['$callInfo.callDuration', null] },
+                    { $isNumber: '$callInfo.callDuration' },
+                    { $eq: ['$callInfo.verified', true] }
+                  ]
+                },
                 '$callInfo.callDuration',
                 0
               ]
             }
           },
           assignedAt: { $first: '$assignedAt' },
-          completedAt: { $first: '$callInfo.completedAt' }
+          lastCompletedAt: {
+            $max: {
+              $cond: [
+                { $eq: ['$callInfo.verified', true] },
+                '$callInfo.completedAt',
+                null
+              ]
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          allCompleted: {
+            $cond: [
+              {
+                $and: [
+                  { $eq: ['$completedCalls', '$totalContacts'] },
+                  { $ne: ['$lastCompletedAt', null] }
+                ]
+              },
+              true,
+              false
+            ]
+          }
         }
       },
       {
@@ -808,13 +846,23 @@ const getTotalSummaryReportController = async (req, res) => {
           email: '$user.email',
           phone: '$user.phone',
           totalContacts: 1,
-          completed: 1,
+          completed: {
+            $cond: [
+              { $eq: ['$allCompleted', true] },
+              '$totalContacts',
+              0
+            ]
+          },
           totalDuration: 1,
           assignedAt: {
-            $dateToString: { format: "%d-%b-%Y", date: "$assignedAt" }
+            $dateToString: { format: "%d-%b-%Y", date: '$assignedAt' }
           },
           completedAt: {
-            $dateToString: { format: "%d-%b-%Y", date: "$completedAt" }
+            $cond: [
+              { $eq: ['$allCompleted', true] },
+              { $dateToString: { format: "%d-%b-%Y", date: '$lastCompletedAt' } },
+              null
+            ]
           }
         }
       }
@@ -1000,20 +1048,20 @@ const bulkverifyCallInfoController = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 }
-const weeklyReportController=async(req,res)=>{
-   try {
+const weeklyReportController = async (req, res) => {
+  try {
     const reports = await WorkReport.find().sort({ week: -1 });
     res.json(reports);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 }
-const monthlyReportController=async(req,res)=>{
-   try {
+const monthlyReportController = async (req, res) => {
+  try {
     const reports = await WorkReport.find().sort({ month: -1 });
     res.json(reports);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 }
-module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus, getUserCompletionsController, deleteUserCompletionTaskController, getAssignedWorkReportController, getTotalSummaryReportController, addAdmissionController, addContactLaterController, callStartController, callStopController, verifyCallInfoController, bulkverifyCallInfoController,weeklyReportController,monthlyReportController };
+module.exports = { uploadSheetDetails, viewStudController, editStudController, deleteStudController, bulkDeleteController, assignStudController, leadsOverviewController, viewAssignedStudentController, getUsersAssignmentStats, getAssignedStudentsController, getAssignedStudentsByDate, deleteAssignedStudentsByDate, studentCallStatusController, studentAssignedSummaryStatus, getUserCompletionsController, deleteUserCompletionTaskController, getAssignedWorkReportController, getTotalSummaryReportController, addAdmissionController, addContactLaterController, callStartController, callStopController, verifyCallInfoController, bulkverifyCallInfoController, weeklyReportController, monthlyReportController };
