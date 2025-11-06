@@ -4,13 +4,35 @@ const mongoose = require('mongoose');
 function getWeekString(date) {
   const d = new Date(date);
   const year = d.getFullYear();
-  const week = Math.ceil((((d - new Date(d.getFullYear(), 0, 1)) / 86400000) + new Date(d.getFullYear(), 0, 1).getDay() + 1) / 7);
+  // You might use ISO week logic if required
+  const week = Math.ceil((((d - new Date(d.getFullYear(), 0, 1)) / 86400000)
+    + new Date(d.getFullYear(), 0, 1).getDay() + 1) / 7);
   return `${year}-W${week}`;
 }
-
 function getMonthString(date) {
   const d = new Date(date);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+function startOfWeek(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // Sunday=0 … Saturday=6
+  const diff = d.getDate() - day; // go back to Sunday
+  return new Date(d.setDate(diff));
+}
+function endOfWeek(date) {
+  const st = startOfWeek(date);
+  const end = new Date(st);
+  end.setDate(st.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return end;
+}
+function startOfMonth(date) {
+  const d = new Date(date);
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+function endOfMonth(date) {
+  const d = new Date(date);
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
 }
 
 async function updateWorkReport(studentDoc) {
@@ -24,36 +46,79 @@ async function updateWorkReport(studentDoc) {
   const week = getWeekString(assignedDate);
   const month = getMonthString(assignedDate);
 
-  // Count stats
-  const assignedCount = await mongoose.model('students').countDocuments({ assignedTo: user._id });
-  const completedCount = await mongoose.model('students').countDocuments({
+  // Define ranges
+  const weekStart = startOfWeek(assignedDate);
+  const weekEnd = endOfWeek(assignedDate);
+
+  // Query students for this user in this week
+  const Student = mongoose.model('students');
+
+  const assignedCountWeek = await Student.countDocuments({
     assignedTo: user._id,
-    'callInfo.completedAt': { $ne: null }
+    assignedAt: { $gte: weekStart, $lte: weekEnd }
   });
 
-  const totalCallDurationSeconds = await mongoose.model('students').aggregate([
-    { $match: { assignedTo: user._id, 'callInfo.callDuration': { $ne: null } } },
-    { $group: { _id: null, total: { $sum: { $multiply: ['$callInfo.callDuration', 60] } } } }
-  ]);
+  const completedCountWeek = await Student.countDocuments({
+    assignedTo: user._id,
+    'callInfo.completedAt': { $ne: null, $gte: weekStart, $lte: weekEnd }
+  });
 
-  const totalSeconds = totalCallDurationSeconds[0]?.total || 0;
+  const agg = await Student.aggregate([
+    {
+      $match: {
+        assignedTo: user._id,
+        'callInfo.callDuration': { $ne: null },
+        'callInfo.completedAt': { $gte: weekStart, $lte: weekEnd }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: { $multiply: ['$callInfo.callDuration', 60] } }
+      }
+    }
+  ]);
+  const totalSecondsWeek = agg.length > 0 ? agg[0].total : 0;
+
+  // Plans logic: count by planType in this week (INSIDE callInfo)
+  const planTypes = ['Starter', 'Gold', 'Master'];
+  // Count any plan assigned in the week (could also use completed, if you prefer)
+  const totalPlansWeek = await Student.countDocuments({
+    assignedTo: user._id,
+    'callInfo.planType': { $in: planTypes },
+    assignedAt: { $gte: weekStart, $lte: weekEnd }
+  });
+
+  // count per plan type (INSIDE callInfo)
+  const planCountsWeek = {};
+  for (const p of planTypes) {
+    planCountsWeek[p] = await Student.countDocuments({
+      assignedTo: user._id,
+      'callInfo.planType': p,
+      assignedAt: { $gte: weekStart, $lte: weekEnd }
+    });
+  }
+
+  console.log('NEW DBG planCountsWeek for user', user._id.toString(), planCountsWeek);
+  console.log('DBG totalPlansWeek:', totalPlansWeek);
+
+  // Upsert into WorkReport
+  const update = {
+    username: user.username,
+    assignedCount: assignedCountWeek,
+    completedCount: completedCountWeek,
+    totalCallDurationSeconds: totalSecondsWeek,
+    totalPlans: totalPlansWeek,
+    planCounts: {
+      Starter: planCountsWeek['Starter'] || 0,
+      Gold: planCountsWeek['Gold'] || 0,
+      Master: planCountsWeek['Master'] || 0
+    }
+  };
 
   await WorkReport.findOneAndUpdate(
     { user: user._id, week, month },
-    {
-      $set: {
-        username: user.username,
-      },
-      $inc: {
-        assignedCount,
-        completedCount,
-        totalCallDurationSeconds: totalSeconds
-      },
-      $addToSet: {
-        assignedDates: assignedDate,
-        completedDates: studentDoc.callInfo?.completedAt || null
-      }
-    },
+    { $set: update },
     { upsert: true, new: true }
   );
 }
