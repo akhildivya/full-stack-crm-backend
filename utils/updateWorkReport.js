@@ -99,8 +99,23 @@ async function updateWorkReport(studentDoc) {
     });
   }
 
-  console.log('NEW DBG planCountsWeek for user', user._id.toString(), planCountsWeek);
-  console.log('DBG totalPlansWeek:', totalPlansWeek);
+ const CallSession = mongoose.model('callsessions');
+  const timerAgg = await CallSession.aggregate([
+    {
+      $match: {
+        user: user._id,
+        stoppedAt: { $gte: weekStart, $lte: weekEnd },
+        durationSeconds: { $ne: null }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        totalTimerSeconds: { $sum: '$durationSeconds' }
+      }
+    }
+  ]);
+  const totalTimerSecondsWeek = timerAgg.length > 0 ? timerAgg[0].totalTimerSeconds : 0;
 
   // Upsert into WorkReport
   const update = {
@@ -108,6 +123,7 @@ async function updateWorkReport(studentDoc) {
     assignedCount: assignedCountWeek,
     completedCount: completedCountWeek,
     totalCallDurationSeconds: totalSecondsWeek,
+     totalTimerSeconds: totalTimerSecondsWeek,
     totalPlans: totalPlansWeek,
     planCounts: {
       Starter: planCountsWeek['Starter'] || 0,

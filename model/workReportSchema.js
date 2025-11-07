@@ -9,6 +9,8 @@ const workReportSchema = new mongoose.Schema({
   assignedCount: { type: Number, default: 0 },
   completedCount: { type: Number, default: 0 },
   totalCallDurationSeconds: { type: Number, default: 0 },
+  totalTimerSeconds: { type: Number, default: 0 },
+
 
   assignedDates: [{ type: Date }],
   completedDates: [{ type: Date }],
