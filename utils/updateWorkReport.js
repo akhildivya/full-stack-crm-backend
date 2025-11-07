@@ -43,6 +43,7 @@ async function updateWorkReport(studentDoc) {
   if (!user) return;
 
   const assignedDate = studentDoc.assignedAt || studentDoc.createdAt;
+  const dayString = assignedDate.toISOString().split('T')[0]; 
   const week = getWeekString(assignedDate);
   const month = getMonthString(assignedDate);
 
@@ -134,7 +135,7 @@ async function updateWorkReport(studentDoc) {
   };
 
   await WorkReport.findOneAndUpdate(
-    { user: user._id, week, month },
+    { user: user._id, week, month ,day: dayString },
     { $set: update },
     { upsert: true, new: true }
   );

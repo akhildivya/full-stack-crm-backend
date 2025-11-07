@@ -37,9 +37,23 @@ async function listFollowup(req, res) {
         .sort(sortObj)
         .skip(skip)
         .limit(Number(limit))
+        .populate({
+          path: 'originalStudentId',
+          select: 'callInfo.planType assignedTo',
+          populate: {
+            path: 'assignedTo',
+            select: 'username'
+          }
+        })
     ]);
-    res.json({ total, rows });
-  } catch(err) {
+    res.json({
+      total, rows: rows.map(r => ({
+        ...r.toObject(),
+        planType: r.originalStudentId?.callInfo?.planType || null,
+        assigneeName: r.originalStudentId?.assignedTo?.username || null
+      }))
+    });
+  } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
@@ -54,7 +68,7 @@ async function deleteFollowup(req, res) {
       return res.status(404).json({ message: 'Record not found' });
     }
     return res.json({ message: 'Deleted successfully', id });
-  } catch(err) {
+  } catch (err) {
     console.error('Error deleting follow-up', err);
     return res.status(500).json({ message: 'Server error' });
   }

@@ -6,7 +6,7 @@ const workReportSchema = new mongoose.Schema({
   phone:    { type: String, default: null }, 
   week: { type: String, required: true }, // e.g. "2025-W45"
   month: { type: String, required: true }, // e.g. "2025-11"
-
+ day:      { type: String, required: true },
   assignedCount: { type: Number, default: 0 },
   completedCount: { type: Number, default: 0 },
   totalCallDurationSeconds: { type: Number, default: 0 },

@@ -12,7 +12,7 @@ router.post('/register',user.userRegister)
 router.post('/login',user.userLogin)
 router.post('/forgot-password',user.forgotPasswordController)
 router.post('/reset-password/:id/:token',user.resetPasswordController)
-router.get('/test',requireSignIn,isAdmin,user.testController)
+
 
 //Protected User Route
 router.get('/user-auth',requireSignIn,(req,res)=>{
@@ -70,4 +70,5 @@ router.delete('/admin/followup/:mode/:id', requireSignIn, isAdmin, deleteFollowu
 
 router.get('/admin/weekly-report',requireSignIn,isAdmin,student.weeklyReportController)
 router.get('/admin/monthly-report',requireSignIn,isAdmin,student.monthlyReportController)
+router.get('/admin/daily-report',requireSignIn,isAdmin,student.dailyReportController)
 module.exports=router

@@ -6,7 +6,7 @@ const contactLaterSchema = new mongoose.Schema({
   course: String,
   place: String,
   movedAt: { type: Date, default: Date.now },
-  originalStudentId: { type: mongoose.Schema.Types.ObjectId }
+  originalStudentId: { type: mongoose.Schema.Types.ObjectId , ref: 'students'}
 });
 const ContactLater = mongoose.model('contactlaters', contactLaterSchema);
 module.exports=ContactLater

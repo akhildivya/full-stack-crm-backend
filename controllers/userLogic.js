@@ -54,9 +54,7 @@ const userLogin = async (req, res) => {
         res.status(500).json("network connectivity issues")
     }
 }
-const testController = async (req, res) => {
-    res.status(400).json({ message: "protected route" })
-}
+
 
 const forgotPasswordController = async (req, res) => {
     try {
@@ -292,4 +290,4 @@ const adminDeleteUserController=async(req,res)=>{
     return res.status(500).json({ success: false, message: "Server error" });
   }
 }
-module.exports = { userRegister, userLogin, testController, forgotPasswordController, resetPasswordController, verfifyController, userDetails, userStatus, userProfile, editProfile, deleteProfile,adminProfile,editAdminProfile,deleteAdminProfile, adminStatus,getUsersController,unVerifiedController,overviewController,adminDeleteUserController }
+module.exports = { userRegister, userLogin, forgotPasswordController, resetPasswordController, verfifyController, userDetails, userStatus, userProfile, editProfile, deleteProfile,adminProfile,editAdminProfile,deleteAdminProfile, adminStatus,getUsersController,unVerifiedController,overviewController,adminDeleteUserController }
