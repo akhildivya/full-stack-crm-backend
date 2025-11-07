@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const workReportSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'users', required: true },
   username: { type: String, required: true },
+  phone:    { type: String, default: null }, 
   week: { type: String, required: true }, // e.g. "2025-W45"
   month: { type: String, required: true }, // e.g. "2025-11"
 

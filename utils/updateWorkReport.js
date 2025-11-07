@@ -120,6 +120,7 @@ async function updateWorkReport(studentDoc) {
   // Upsert into WorkReport
   const update = {
     username: user.username,
+     phone:    user.phone || null, 
     assignedCount: assignedCountWeek,
     completedCount: completedCountWeek,
     totalCallDurationSeconds: totalSecondsWeek,
