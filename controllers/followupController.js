@@ -31,7 +31,7 @@ async function listFollowup(req, res) {
 
   const skip = (page - 1) * limit;
   try {
-    const [total, rows] = await Promise.all([
+ const [total, rows] = await Promise.all([
       Model.countDocuments(filter),
       Model.find(filter)
         .sort(sortObj)
@@ -46,13 +46,27 @@ async function listFollowup(req, res) {
           }
         })
     ]);
-    res.json({
-      total, rows: rows.map(r => ({
-        ...r.toObject(),
-        planType: r.originalStudentId?.callInfo?.planType || null,
-        assigneeName: r.originalStudentId?.assignedTo?.username || null
-      }))
+
+
+      const mappedRows = rows.map(r => {
+      const obj = r.toObject();
+      let planType = null;
+      let assigneeName = null;
+
+      // Only get values if the student is populated (non-null)
+      if (r.originalStudentId) {
+        planType = r.originalStudentId.callInfo?.planType || null;
+        assigneeName = r.originalStudentId.assignedTo?.username || null;
+      }
+
+      
+      return {
+        ...obj,
+        planType,
+        assigneeName
+      };
     });
+   res.json({ total, rows: mappedRows });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

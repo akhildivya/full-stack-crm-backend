@@ -1057,8 +1057,75 @@ const weeklyReportController = async (req, res) => {
   }
 }
 const monthlyReportController = async (req, res) => {
- try {
-    const reports = await WorkReport.find().sort({ month: -1 });
+try {
+    // Aggregate WorkReports per user and month, summing totals
+    const reports = await WorkReport.aggregate([
+      {
+        $group: {
+          _id: {
+            user: "$username", // or use "$user" or "$userId" depending on your schema
+            phone: "$phone",
+            month: "$month"
+          },
+          assignedCount: { $sum: "$assignedCount" },
+          completedCount: { $sum: "$completedCount" },
+          totalCallDurationSeconds: { $sum: "$totalCallDurationSeconds" },
+          totalTimerSeconds: { $sum: "$totalTimerSeconds" },
+          totalPlans: { $sum: "$totalPlans" },
+          planCounts: {
+            $push: "$planCounts" // accumulate all planCounts; we'll merge in the next step
+          }
+        }
+      },
+      {
+        // Merge all planCounts objects per user/month
+        $addFields: {
+          planCounts: {
+            Starter: {
+              $sum: {
+                $map: {
+                  input: "$planCounts",
+                  as: "pc",
+                  in: { $ifNull: ["$$pc.Starter", 0] }
+                }
+              }
+            },
+            Gold: {
+              $sum: {
+                $map: {
+                  input: "$planCounts",
+                  as: "pc",
+                  in: { $ifNull: ["$$pc.Gold", 0] }
+                }
+              }
+            },
+            Master: {
+              $sum: {
+                $map: {
+                  input: "$planCounts",
+                  as: "pc",
+                  in: { $ifNull: ["$$pc.Master", 0] }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          username: "$_id.user",
+          phone: "$_id.phone",
+          month: "$_id.month",
+          assignedCount: 1,
+          completedCount: 1,
+          totalCallDurationSeconds: 1,
+          totalTimerSeconds: 1,
+          totalPlans: 1,
+          planCounts: 1
+        }
+      },
+      { $sort: { month: -1, username: 1 } }
+    ]);
     res.json(reports);
   } catch (err) {
     res.status(500).json({ error: err.message });

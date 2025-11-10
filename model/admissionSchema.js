@@ -6,7 +6,8 @@ const admissionSchema = new mongoose.Schema({
   course: String,
   place: String,
   movedAt: { type: Date, default: Date.now },
-  originalStudentId: { type: mongoose.Schema.Types.ObjectId , ref: 'students' }
+  originalStudentId: { type: mongoose.Schema.Types.ObjectId , ref: 'students',
+    default: null }
 });
 const admissions = mongoose.model('admissions', admissionSchema);
 module.exports=admissions
