@@ -30,7 +30,8 @@ const studentSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true,
-        index: { unique: true }
+        index: { unique: true },
+        
     },
     course: { type: String, required: true, trim: true },
     place: { type: String, required: true, trim: true },

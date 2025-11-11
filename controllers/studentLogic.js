@@ -190,17 +190,56 @@ const viewStudController = async (req, res) => {
 
 const editStudController = async (req, res) => {
   try {
+    const studentId = new mongoose.Types.ObjectId(req.params.id);
+    let { email, phone } = req.body;
+
+    // Normalize input
+    if (phone) phone = String(phone).trim();
+    if (email) email = email.toLowerCase().trim();
+
+    // ✅ Duplicate email (case-insensitive)
+    if (email) {
+      const existingEmail = await student.findOne({
+        _id: { $ne: studentId },
+        email: { $regex: new RegExp(`^${email}$`, 'i') },
+      });
+      if (existingEmail) {
+        return res.status(400).json({ message: 'Email already exists' });
+      }
+    }
+
+    // ✅ Duplicate phone (exact string match)
+    if (phone) {
+      const existingPhone = await student.findOne({
+        _id: { $ne: studentId },
+        phone: phone,
+      });
+
+      if (existingPhone) {
+        return res.status(400).json({ message: 'Phone number already exists' });
+      }
+    }
+
+    // ✅ Proceed with update safely
     const updatedStudent = await student.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
+      studentId,
+      { ...req.body, phone, email },
+      { new: true, runValidators: true }
     );
+
     if (!updatedStudent) {
       return res.status(404).json({ message: 'Student not found' });
     }
+
     res.json(updatedStudent);
   } catch (err) {
-    console.error(err);
+    console.error('Error in editStudController:', err);
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyValue)[0];
+      return res.status(400).json({
+        message: `${field.charAt(0).toUpperCase() + field.slice(1)} already exists`,
+      });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 }
