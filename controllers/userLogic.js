@@ -159,13 +159,51 @@ const userProfile = async (req, res) => {
 }
 
 const editProfile = async (req, res) => {
-    try {
-        const updates = req.body; // e.g., { username, email, phone }
-        const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true }).select('-password');
-        return res.json(user);
-    } catch (err) {
-        return res.status(500).json({ message: 'Server error' });
+   try {
+    const userId = req.user._id;
+    let { username, email, phone } = req.body;
+
+    if (email) email = email.toLowerCase().trim();
+    if (username) username = username.trim();
+
+    // ✅ Check for duplicate email (ignore current user's)
+    if (email) {
+      const existingEmail = await User.findOne({
+        _id: { $ne: userId },
+        email: email
+      });
+      if (existingEmail) {
+        return res.status(400).json({ message: 'Email already exists' });
+      }
     }
+
+    // ✅ Check for duplicate phone (ignore current user's)
+    if (phone) {
+      const existingPhone = await User.findOne({
+        _id: { $ne: userId },
+        phone: phone
+      });
+      if (existingPhone) {
+        return res.status(400).json({ message: 'Phone number already exists' });
+      }
+    }
+
+    // ✅ Proceed with update
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { username, email, phone },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    return res.json(updatedUser);
+  } catch (err) {
+    console.error('Error in editProfile:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
 }
 
 const deleteProfile = async (req, res) => {
@@ -191,12 +229,50 @@ const adminProfile = async (req, res) => {
 
 const editAdminProfile = async (req, res) => {
     try {
-        const updates = req.body; // e.g., { username, email, phone }
-        const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true }).select('-password');
-        return res.json(user);
-    } catch (err) {
-        return res.status(500).json({ message: 'Server error' });
+    const adminId = req.user._id;
+    let { username, email, phone, verified } = req.body;
+
+    if (email) email = email.toLowerCase().trim();
+    if (username) username = username.trim();
+
+    // ✅ Check duplicate email (ignore same user)
+    if (email) {
+      const existingEmail = await User.findOne({
+        _id: { $ne: adminId },
+        email: email,
+      });
+      if (existingEmail) {
+        return res.status(400).json({ message: 'Email already exists' });
+      }
     }
+
+    // ✅ Check duplicate phone (ignore same user)
+    if (phone) {
+      const existingPhone = await User.findOne({
+        _id: { $ne: adminId },
+        phone: phone,
+      });
+      if (existingPhone) {
+        return res.status(400).json({ message: 'Phone number already exists' });
+      }
+    }
+
+    // ✅ Proceed to update
+    const updatedUser = await User.findByIdAndUpdate(
+      adminId,
+      { username, email, phone, verified },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    return res.json(updatedUser);
+  } catch (err) {
+    console.error('Error in editAdminProfile:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
 }
 
 const deleteAdminProfile = async (req, res) => {

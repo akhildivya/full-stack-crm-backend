@@ -189,15 +189,19 @@ const viewStudController = async (req, res) => {
 }
 
 const editStudController = async (req, res) => {
-  try {
+ try {
     const studentId = new mongoose.Types.ObjectId(req.params.id);
     let { email, phone } = req.body;
 
     // Normalize input
-    if (phone) phone = String(phone).trim();
-    if (email) email = email.toLowerCase().trim();
+    if (phone) {
+      phone = String(phone).trim().replace(/\s+/g, '');
+    }
+    if (email) {
+      email = email.toLowerCase().trim();
+    }
 
-    // ✅ Duplicate email (case-insensitive)
+    // ✅ Check for duplicate email (case-insensitive)
     if (email) {
       const existingEmail = await student.findOne({
         _id: { $ne: studentId },
@@ -208,11 +212,11 @@ const editStudController = async (req, res) => {
       }
     }
 
-    // ✅ Duplicate phone (exact string match)
+    // ✅ Check for duplicate phone (normalized)
     if (phone) {
       const existingPhone = await student.findOne({
         _id: { $ne: studentId },
-        phone: phone,
+        phone: { $regex: new RegExp(`^${phone}$`, 'i') },
       });
 
       if (existingPhone) {
