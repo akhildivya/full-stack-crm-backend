@@ -216,7 +216,7 @@ const editStudController = async (req, res) => {
     if (phone) {
       const existingPhone = await student.findOne({
         _id: { $ne: studentId },
-        phone: { $regex: new RegExp(`^${phone}$`, 'i') },
+         phone: phone,
       });
 
       if (existingPhone) {
@@ -932,7 +932,10 @@ const addAdmissionController = async (req, res) => {
       originalStudentId: s._id
     }));
     await Admission.insertMany(admissions);
-    await student.deleteMany({ _id: { $in: ids } });
+    await student.updateMany(
+      { _id: { $in: ids } },
+      { $set: { isMovedToAdmission: true } }
+    );
 
     res.status(200).json({ message: "Moved to Admission" });
   } catch (err) {
@@ -955,7 +958,10 @@ const addContactLaterController = async (req, res) => {
       originalStudentId: s._id
     }));
     await ContactLater.insertMany(contacts);
-    await student.deleteMany({ _id: { $in: ids } });
+     await student.updateMany(
+      { _id: { $in: ids } },
+      { $set: { isMovedToContactLater: true } }
+    );
 
     res.status(200).json({ message: "Moved to Contact Later" });
   } catch (err) {

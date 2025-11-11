@@ -4,7 +4,7 @@ const ContactLater = require('../model/contactLaterSchema');
 
 
 async function listFollowup(req, res) {
-   const { mode } = req.params;         // 'admission' or 'contactLater'
+  const { mode } = req.params;         // 'admission' or 'contactLater'
   const {
     search = '',
     sortKey = 'movedAt',
@@ -40,19 +40,28 @@ async function listFollowup(req, res) {
         .limit(Number(limit))
         .populate({
           path: 'originalStudentId',
-          select: 'callInfo.planType assignedTo',
+          select: 'callInfo assignedTo',
           populate: {
             path: 'assignedTo',
             select: 'username'
           }
         })
     ]);
+     console.log(
+      'Sample populated data:',
+      JSON.stringify(rows[0]?.originalStudentId, null, 2)
+    ); // NEW
+
     res.json({
-      total, rows: rows.map(r => ({
-        ...r.toObject(),
-        planType: r.originalStudentId?.callInfo?.planType || null,
-        assigneeName: r.originalStudentId?.assignedTo?.username || null
-      }))
+      total,
+      rows: rows.map(r => {
+        const orig = r.originalStudentId;
+        return {
+          ...r.toObject(),
+          planType: orig?.callInfo?.planType || 'N/A',
+          assigneeName: orig?.assignedTo?.username || 'N/A'
+        };
+      })
     });
   } catch (err) {
     console.error(err);

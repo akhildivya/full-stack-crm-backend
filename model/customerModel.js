@@ -40,7 +40,9 @@ const studentSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
-    callInfo: callInfoSchema
+    callInfo: callInfoSchema,
+     isMovedToAdmission: { type: Boolean, default: false },
+  isMovedToContactLater: { type: Boolean, default: false },
     
 }, { timestamps: true })
 studentSchema.virtual('callMarked').get(function() {
