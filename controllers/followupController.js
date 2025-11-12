@@ -47,11 +47,7 @@ async function listFollowup(req, res) {
           }
         })
     ]);
-     console.log(
-      'Sample populated data:',
-      JSON.stringify(rows[0]?.originalStudentId, null, 2)
-    ); // NEW
-
+   
     res.json({
       total,
       rows: rows.map(r => {

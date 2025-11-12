@@ -83,7 +83,7 @@ studentSchema.post('save', async function (doc, next) {
         isAssignmentComplete: true,
         assignmentCompletedAt: new Date()
       });
-      console.log(`User ${doc.assignedTo} has completed all tasks.`);
+     /* console.log(`User ${doc.assignedTo} has completed all tasks.`);*/
     } else {
       await Users.findByIdAndUpdate(doc.assignedTo, {
         isAssignmentComplete: false,

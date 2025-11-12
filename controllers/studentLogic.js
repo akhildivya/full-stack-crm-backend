@@ -918,12 +918,24 @@ const getTotalSummaryReportController = async (req, res) => {
   }
 }
 const addAdmissionController = async (req, res) => {
-  const { ids } = req.body;  // array of student IDs
+ const { ids } = req.body;  // array of student IDs
   try {
     const students = await student.find({ _id: { $in: ids } });
-    if (!students.length) return res.status(404).json({ message: "No students found" });
+    if (!students.length) {
+      return res.status(404).json({ message: "No students found" });
+    }
 
-    const admissions = students.map(s => ({
+    // find which of these are already in Admission
+    const existingAdmissions = await Admission.find({ originalStudentId: { $in: ids } })
+                                              .select('originalStudentId');
+    const existingIds = existingAdmissions.map(e => String(e.originalStudentId));
+
+    // filter out students who are not duplicates
+    const toInsert = students.filter(s => !existingIds.includes(String(s._id)));
+    const duplicates = students.filter(s => existingIds.includes(String(s._id)));
+
+    // build insert docs only for new ones
+    const admissions = toInsert.map(s => ({
       name: s.name,
       email: s.email,
       phone: s.phone,
@@ -931,25 +943,44 @@ const addAdmissionController = async (req, res) => {
       place: s.place,
       originalStudentId: s._id
     }));
-    await Admission.insertMany(admissions);
-    await student.updateMany(
-      { _id: { $in: ids } },
-      { $set: { isMovedToAdmission: true } }
-    );
 
-    res.status(200).json({ message: "Moved to Admission" });
+    let insertedCount = 0;
+    if (admissions.length > 0) {
+      await Admission.insertMany(admissions, { ordered: false });
+      await student.updateMany(
+        { _id: { $in: toInsert.map(s => s._id) } },
+        { $set: { isMovedToAdmission: true } }
+      );
+      insertedCount = admissions.length;
+    }
+
+    return res.status(200).json({
+      message: "Processed",
+      insertedCount,
+      duplicateCount: duplicates.length,
+      duplicateIds: duplicates.map(s => s._id)
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Server error" });
   }
 }
 const addContactLaterController = async (req, res) => {
   const { ids } = req.body;
   try {
     const students = await student.find({ _id: { $in: ids } });
-    if (!students.length) return res.status(404).json({ message: "No students found" });
+    if (!students.length) {
+      return res.status(404).json({ message: "No students found" });
+    }
 
-    const contacts = students.map(s => ({
+    const existingContacts = await ContactLater.find({ originalStudentId: { $in: ids } })
+                                               .select('originalStudentId');
+    const existingIds = existingContacts.map(e => String(e.originalStudentId));
+
+    const toInsert = students.filter(s => !existingIds.includes(String(s._id)));
+    const duplicates = students.filter(s => existingIds.includes(String(s._id)));
+
+    const contacts = toInsert.map(s => ({
       name: s.name,
       email: s.email,
       phone: s.phone,
@@ -957,16 +988,26 @@ const addContactLaterController = async (req, res) => {
       place: s.place,
       originalStudentId: s._id
     }));
-    await ContactLater.insertMany(contacts);
-     await student.updateMany(
-      { _id: { $in: ids } },
-      { $set: { isMovedToContactLater: true } }
-    );
 
-    res.status(200).json({ message: "Moved to Contact Later" });
+    let insertedCount = 0;
+    if (contacts.length > 0) {
+      await ContactLater.insertMany(contacts, { ordered: false });
+      await student.updateMany(
+        { _id: { $in: toInsert.map(s => s._id) } },
+        { $set: { isMovedToContactLater: true } }
+      );
+      insertedCount = contacts.length;
+    }
+
+    return res.status(200).json({
+      message: "Processed",
+      insertedCount,
+      duplicateCount: duplicates.length,
+      duplicateIds: duplicates.map(s => s._id)
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Server error" });
   }
 }
 const callStartController = async (req, res) => {
@@ -1064,7 +1105,10 @@ const verifyCallInfoController = async (req, res) => {
     if (!stu) {
       return res.status(404).json({ success: false, message: 'Student not found' });
     }
-
+ if (stu.callInfo?.verified) {
+      // Already verified
+      return res.status(200).json({ success: false, message: 'Call info already verified' });
+    }
     // Mark as verified
     stu.callInfo.verified = true;
     await stu.save();
@@ -1076,21 +1120,26 @@ const verifyCallInfoController = async (req, res) => {
   }
 }
 const bulkverifyCallInfoController = async (req, res) => {
-  try {
+ try {
     const { ids } = req.body;  // expect array of _id strings
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ success: false, message: 'No student IDs provided' });
     }
 
+    // Count how many are already verified
+    const already = await student.countDocuments({ _id: { $in: ids }, 'callInfo.verified': true });
+    const toUpdateCount = ids.length - already;
+
     const result = await student.updateMany(
-      { _id: { $in: ids } },
+      { _id: { $in: ids }, 'callInfo.verified': { $ne: true } },
       { $set: { 'callInfo.verified': true } }
     );
 
     return res.status(200).json({
       success: true,
-      message: `Marked ${result.modifiedCount} students call status as verified.`,
-      modifiedCount: result.modifiedCount
+      message: `Marked ${result.modifiedCount} students as verified.`,
+      modifiedCount: result.modifiedCount,
+      alreadyVerifiedCount: already
     });
   } catch (err) {
     console.error('Error bulk verifying callInfo:', err);
