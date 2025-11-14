@@ -8,7 +8,14 @@ const server=express()
 const PORT=4000 || process.env.PORT
 
 
-server.use(cors())
+const corsOptions = {
+  origin: 'https://sunny-caramel-d28ec6.netlify.app',  // allow only this frontend
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],     // allowed methods
+  allowedHeaders: ['Content-Type','Authorization'],     // allowed headers
+  credentials: true                                      // if you are sending cookies/auth headers
+};
+
+server.use(cors(corsOptions))
 server.use(express.json({ limit: '10mb' }))
 server.use(router)
 
